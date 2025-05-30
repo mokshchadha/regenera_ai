@@ -127,8 +127,6 @@ export type ChatEventType =
   | "typing_start"
   | "typing_stop";
 
- 
-
 // Utility Types
 export type MessageRole = ChatMessage["role"];
 export type ConnectionStatus =

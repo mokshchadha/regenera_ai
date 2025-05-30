@@ -30,7 +30,8 @@ const ChatExample: React.FC = () => {
 
   return (
     <div className="chat-example-container">
-      {/* <header className="example-header">
+      {
+        /* <header className="example-header">
         <h1>Naturo AI Chat Assistant</h1>
         <p>Connect with Naturo, your wise digital assistant powered by AI</p>
 
@@ -40,13 +41,15 @@ const ChatExample: React.FC = () => {
             <button onClick={() => setError(null)}>×</button>
           </div>
         )}
-      </header> */}
+      </header> */
+      }
 
       <main className="example-main">
         {!showChat
           ? (
             <div className="welcome-section">
-              {/* <div className="welcome-card">
+              {
+                /* <div className="welcome-card">
                 <div className="welcome-icon">🐸</div>
                 <h2>Meet Naturo</h2>
                 <p>
@@ -69,7 +72,8 @@ const ChatExample: React.FC = () => {
                 <div className="stats">
                   <span>Messages sent this session: {messageCount}</span>
                 </div>
-              </div> */}
+              </div> */
+              }
             </div>
           )
           : (
@@ -102,12 +106,14 @@ const ChatExample: React.FC = () => {
           )}
       </main>
 
-      {/* <footer className="example-footer">
+      {
+        /* <footer className="example-footer">
         <p>
           Powered by <strong>Regenera AI</strong> | Built with{" "}
           <strong>Deno</strong> & <strong>React</strong>
         </p>
-      </footer> */}
+      </footer> */
+      }
 
       {/* Floating Chat Button - Alternative Implementation */}
       {!showChat && (

@@ -54,7 +54,7 @@ export class MultiAgentChatbot {
       },
       naturo: {
         name: "Naturo",
-        instruction: Prompts.naturoPersona,
+        instruction: Prompts.naturoPersona ,
         description:
           "Merge responses with Naturo's unique personality and coaching style",
         isGoogleSearchEnabled: false,
@@ -226,8 +226,11 @@ export class MultiAgentChatbot {
       infoResult,
     );
 
+    const finalPrompt = `${mergeInput} 
+    ###The original Question was :- ${originalQuery}`
+
     console.log("🐸 Merging with Naturo...");
-    return await this.agents.naturo(mergeInput);
+    return await this.agents.naturo(finalPrompt);
   }
 
   private buildMergeInput(
