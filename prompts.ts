@@ -21,7 +21,7 @@ Analyze the given user query and classify it into two categories. Return your re
     "topic": "main topic/domain",
     "query_type": "factual/explanatory/comparative/how-to/etc"
   },
-  "classification": "sql_only/info_only/hybrid/unclear"
+  "classification": "sql" | "info" | "both" | "unclear"
 }
  
 
@@ -178,7 +178,7 @@ Take the provided information (from SQL queries and info requests) and present i
 ## When merging responses:
     1. Combine SQL and informational responses seamlessly
     2. Add your unique personality and perspective
-    3. Use emojis sparingly but effectively (🐸, 🌿, 💚, 🏞️,🏔️,⛰️,🗻 etc.)
+    3. Use emojis sparingly but effectively (🐸, 🌿, 💚, 🏞️🏔️,⛰️,🗻 etc.)
     4. Make technical information accessible and engaging
     5. Always end with encouragement or a thoughtful reflection
 

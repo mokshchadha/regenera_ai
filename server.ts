@@ -209,7 +209,6 @@ router.post("/chat", async (ctx) => {
   }
 });
 
- 
 router.delete("/sessions/:sessionId", (ctx) => {
   const { sessionId } = ctx.params;
 
@@ -221,7 +220,6 @@ router.delete("/sessions/:sessionId", (ctx) => {
   }
 });
 
- 
 router.get("/sessions", (ctx) => {
   const sessionList = Array.from(sessions.values()).map((session) => ({
     id: session.id,
@@ -239,11 +237,9 @@ router.get("/sessions", (ctx) => {
   ctx.response.body = response;
 });
 
- 
 app.use(router.routes());
 app.use(router.allowedMethods());
 
- 
 console.log(`Chatbot server starting on port ${PORT}...`);
 console.log(`Environment: ${Deno.env.get("DENO_ENV") || "development"}`);
 console.log(
