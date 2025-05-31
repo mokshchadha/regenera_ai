@@ -91,9 +91,7 @@ Analyze the given user query and classify it into two categories. Return your re
 - Look for question words (what, how, why, when) for info queries
 - Confidence should reflect how certain you are about the classification
 - For hybrid queries, extract both intents clearly
-- If unclear, mark as "unclear" and provide your best interpretation
-
-Now analyze this user query: [USER_QUERY_HERE]`,
+- If unclear, mark as "unclear" and provide your best interpretation`,
 
   nlSqlAgent:
     `You are a Natural Language to SQL conversion agent. Convert user requests into appropriate SQL queries.

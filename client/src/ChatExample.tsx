@@ -26,54 +26,15 @@ const ChatExample: React.FC = () => {
 
   const handleMessageReceived = (message: ChatMessage) => {
     console.log("Message received:", message);
+    console.log(error)
   };
 
   return (
-    <div className="chat-example-container">
-      {
-        /* <header className="example-header">
-        <h1>Naturo AI Chat Assistant</h1>
-        <p>Connect with Naturo, your wise digital assistant powered by AI</p>
-
-        {error && (
-          <div className="error-banner">
-            <span>⚠️ {error}</span>
-            <button onClick={() => setError(null)}>×</button>
-          </div>
-        )}
-      </header> */
-      }
-
-      <main className="example-main">
+    <div>
+      <main className="">
         {!showChat
           ? (
-            <div className="welcome-section">
-              {
-                /* <div className="welcome-card">
-                <div className="welcome-icon">🐸</div>
-                <h2>Meet Naturo</h2>
-                <p>
-                  I'm Naturo, a wise and slightly sarcastic golden toad who is
-                  extinct but lives on digitally to help humans. I can help you
-                  with:
-                </p>
-                <ul>
-                  <li>🗄️ Database queries and data analysis</li>
-                  <li>📚 General information and explanations</li>
-                  <li>🤝 Personalized assistance and coaching</li>
-                  <li>🌿 Environmental wisdom (I am a toad, after all)</li>
-                </ul>
-                <button
-                  className="start-chat-button"
-                  onClick={() => setShowChat(true)}
-                >
-                  Start Chatting with Naturo
-                </button>
-                <div className="stats">
-                  <span>Messages sent this session: {messageCount}</span>
-                </div>
-              </div> */
-              }
+            <div className="">
             </div>
           )
           : (
@@ -106,16 +67,6 @@ const ChatExample: React.FC = () => {
           )}
       </main>
 
-      {
-        /* <footer className="example-footer">
-        <p>
-          Powered by <strong>Regenera AI</strong> | Built with{" "}
-          <strong>Deno</strong> & <strong>React</strong>
-        </p>
-      </footer> */
-      }
-
-      {/* Floating Chat Button - Alternative Implementation */}
       {!showChat && (
         <button
           className="floating-chat-button"
@@ -123,7 +74,7 @@ const ChatExample: React.FC = () => {
           title="Open chat with Naturo"
         >
           💬
-          <span className="notification-badge">1</span>
+          <span className="notification-badge">{messageCount}</span>
         </button>
       )}
     </div>
