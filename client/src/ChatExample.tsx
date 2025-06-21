@@ -35,6 +35,9 @@ const ChatExample: React.FC = () => {
         {!showChat
           ? (
             <div className="">
+              <h1>Regenera Earth 🌿 </h1>
+              <h2>* This is an existing page *</h2>
+
             </div>
           )
           : (

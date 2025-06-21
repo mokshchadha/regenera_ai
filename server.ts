@@ -19,10 +19,8 @@ if (!API_KEY) {
   Deno.exit(1);
 }
 
-// Initialize chatbot manager
 const chatbotManager = new ChatbotManager(API_KEY);
 
-// Session management functions
 function createSession(userId?: string): ChatSession {
   const sessionId = crypto.randomUUID();
   const session: ChatSession = {
