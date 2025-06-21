@@ -1372,14 +1372,16 @@ const pdf7_regeneraFAQs =
 
 **Key Takeaway**: Regenera operates as a bridge between urban environmental consciousness and rural conservation action, creating a sustainable economic model that addresses climate change while supporting rural communities in Peru through direct financial incentives for ecosystem protection and restoration.`;
 
-export const infoAgentPrompt = `Here is a summary of all the internal information related to the organisation Regenera ` + [
-  pdf1_BIOTAWhitepaper,
-  pdf2_regeneraBrandBook,
-  pdf3_AccountingForNaturalCapital,
-  pdf4_CochaCashu,
-  pdf5_emmissionStatement,
-  pdf6_regeneraJargons,
-  pdf7_regeneraFAQs,
-].join(
-  "\n==================================================================\n==================================================================\n",
-);
+export const infoAgentPrompt =
+  `Here is a summary of all the internal information related to the organisation Regenera ` +
+  [
+    pdf1_BIOTAWhitepaper,
+    pdf2_regeneraBrandBook,
+    pdf3_AccountingForNaturalCapital,
+    pdf4_CochaCashu,
+    pdf5_emmissionStatement,
+    pdf6_regeneraJargons,
+    pdf7_regeneraFAQs,
+  ].join(
+    "\n==================================================================\n==================================================================\n",
+  );

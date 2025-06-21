@@ -5,6 +5,16 @@ interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
+  isCreditsExhausted?: boolean; // NEW: Flag for credits exhausted messages
+}
+
+// NEW: Client detail interface
+interface ClientDetail {
+  personNumber?: string;
+  id?: string;
+  companyId?: string;
+  userId?: string;
+  [key: string]: unknown;
 }
 
 interface ChatComponentProps {
@@ -14,9 +24,11 @@ interface ChatComponentProps {
   welcomeMessage?: string;
   className?: string;
   style?: React.CSSProperties;
+  clientDetail?: ClientDetail; // NEW: Optional client detail
   onError?: (error: string) => void;
   onMessageSent?: (message: string) => void;
   onMessageReceived?: (message: ChatMessage) => void;
+  onCreditsExhausted?: () => void; // NEW: Callback for credits exhausted
 }
 
 interface ChatResponse {
@@ -25,6 +37,7 @@ interface ChatResponse {
   context?: {
     totalMessages: number;
     sessionCreated: Date;
+    messageCount?: number; // NEW: Track message count
   };
 }
 
@@ -36,15 +49,19 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
     "🐸 Hello! I'm Naturo, your digital assistant. How can I help you today?",
   className = "",
   style = {},
+  clientDetail, // NEW: Client detail prop
   onError,
   onMessageSent,
   onMessageReceived,
+  onCreditsExhausted, // NEW: Credits exhausted callback
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [creditsExhausted, setCreditsExhausted] = useState(false); // NEW: Track credits state
+  const [messageCount, setMessageCount] = useState(0); // NEW: Track message count
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -77,6 +94,21 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
     inputRef.current?.focus();
   }, []);
 
+  // NEW: Function to detect if message indicates credits exhausted
+  const isCreditsExhaustedMessage = (content: string): boolean => {
+    const exhaustedKeywords = [
+      "ai credits",
+      "credits exhausted",
+      "come back later",
+      "used your ai credits",
+      "credits are exhausted"
+    ];
+    
+    return exhaustedKeywords.some(keyword => 
+      content.toLowerCase().includes(keyword.toLowerCase())
+    );
+  };
+
   const createSession = async (): Promise<string> => {
     try {
       const response = await fetch(`${serverUrl}/sessions`, {
@@ -104,17 +136,21 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
     currentSessionId?: string,
   ): Promise<ChatResponse> => {
     try {
+      // NEW: Include client detail in request
+      const requestBody = {
+        sessionId: currentSessionId,
+        message,
+        userId,
+        createNewSession: !currentSessionId,
+        ...(clientDetail && { clientDetail }), // Include client detail if provided
+      };
+
       const response = await fetch(`${serverUrl}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          sessionId: currentSessionId,
-          message,
-          userId,
-          createNewSession: !currentSessionId,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -132,7 +168,7 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
   };
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+    if (!inputValue.trim() || isLoading || creditsExhausted) return;
 
     const messageText = inputValue.trim();
     setInputValue("");
@@ -165,13 +201,31 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
         setSessionId(response.sessionId);
       }
 
-      // Add assistant response to chat
-      setMessages((prev) => [...prev, {
+      // NEW: Check if response indicates credits exhausted
+      const isExhausted = isCreditsExhaustedMessage(response.message.content);
+      
+      // NEW: Update message count from response context
+      if (response.context?.messageCount !== undefined) {
+        setMessageCount(response.context.messageCount);
+      }
+
+      // Add assistant response to chat with credits exhausted flag
+      const assistantMessage: ChatMessage = {
         ...response.message,
         timestamp: new Date(response.message.timestamp),
-      }]);
+        isCreditsExhausted: isExhausted, // NEW: Mark credits exhausted messages
+      };
 
-      onMessageReceived?.(response.message);
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      // NEW: Handle credits exhausted state
+      if (isExhausted) {
+        setCreditsExhausted(true);
+        onCreditsExhausted?.();
+        console.log("🚫 AI credits exhausted");
+      }
+
+      onMessageReceived?.(assistantMessage);
     } catch (error) {
       const errorMessage = error instanceof Error
         ? error.message
@@ -219,6 +273,8 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
         : [],
     );
     setSessionId(null);
+    setCreditsExhausted(false); // NEW: Reset credits state
+    setMessageCount(0); // NEW: Reset message count
   };
 
   return (
@@ -238,6 +294,15 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
             </span>
           </div>
           <h3>Chat with Naturo 🐸</h3>
+          {/* NEW: Display message count and credits status */}
+          <div className="message-counter">
+            <span className={`credits-info ${creditsExhausted ? 'exhausted' : ''}`}>
+              {creditsExhausted 
+                ? "🚫 Credits Exhausted" 
+                : `💬 ${messageCount}/10 messages`
+              }
+            </span>
+          </div>
         </div>
         <button
           className="clear-button"
@@ -256,10 +321,18 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
             key={message.id}
             className={`message ${message.role} ${
               message.role === "system" ? "error" : ""
-            }`}
+            } ${
+              message.isCreditsExhausted ? "credits-exhausted" : ""
+            }`} // NEW: Add credits-exhausted class
           >
             <div className="message-content">
-              <div className="message-text">{message.content}</div>
+              <div 
+                className={`message-text ${
+                  message.isCreditsExhausted ? "credits-exhausted-text" : ""
+                }`} // NEW: Special styling for credits exhausted text
+              >
+                {message.content}
+              </div>
               <div className="message-time">
                 {formatTime(message.timestamp)}
               </div>
@@ -269,6 +342,8 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
                 ? "👤"
                 : message.role === "system"
                 ? "⚠️"
+                : message.isCreditsExhausted
+                ? "🚫" // NEW: Different emoji for credits exhausted
                 : "🐸"}
             </div>
           </div>
@@ -293,6 +368,13 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
 
       {/* Input */}
       <div className="chat-input-container">
+        {/* NEW: Show credits exhausted warning */}
+        {creditsExhausted && (
+          <div className="credits-warning">
+            <span>🚫 You have reached your message limit. Please start a new session to continue.</span>
+          </div>
+        )}
+        
         <div className="chat-input-wrapper">
           <input
             ref={inputRef}
@@ -300,17 +382,17 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={placeholder}
-            disabled={isLoading}
+            placeholder={creditsExhausted ? "Credits exhausted..." : placeholder} // NEW: Update placeholder when exhausted
+            disabled={isLoading || creditsExhausted} // NEW: Disable input when exhausted
             className="chat-input"
           />
           <button
             onClick={handleSendMessage}
-            disabled={!inputValue.trim() || isLoading}
+            disabled={!inputValue.trim() || isLoading || creditsExhausted} // NEW: Disable when exhausted
             className="send-button"
-            title="Send message"
+            title={creditsExhausted ? "Credits exhausted" : "Send message"}
           >
-            {isLoading ? "⏳" : "📤"}
+            {isLoading ? "⏳" : creditsExhausted ? "🚫" : "📤"}
           </button>
         </div>
       </div>

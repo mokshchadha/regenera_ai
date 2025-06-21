@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 // chatbot.ts
 import { GoogleAIAgent } from "./google-ai-agent.ts";
 import Prompts from "./prompts.ts";
@@ -7,6 +8,7 @@ import {
   AgentSource,
   AgentTextResponse,
   AgentType,
+  ClientDetail,
   MergedResponseData,
   ProcessedAgentResult,
   QueryClassification,
@@ -54,7 +56,7 @@ export class MultiAgentChatbot {
       },
       naturo: {
         name: "Naturo",
-        instruction: Prompts.naturoPersona ,
+        instruction: Prompts.naturoPersona,
         description:
           "Merge responses with Naturo's unique personality and coaching style",
         isGoogleSearchEnabled: false,
@@ -70,10 +72,34 @@ export class MultiAgentChatbot {
     );
   }
 
+  private hasValidClientDetail(clientDetail?: ClientDetail): boolean {
+    if (!clientDetail) return false;
+
+    return !!(
+      clientDetail.personNumber ||
+      clientDetail.id ||
+      clientDetail.companyId ||
+      clientDetail.userId
+    );
+  }
+
+  // UPDATED: processQuery now takes clientDetail parameter
   public async processQuery(
     userQuery: string,
+    clientDetail?: ClientDetail,
   ): Promise<AgentResponse<MergedResponseData>> {
     try {
+      const hasClientDetail = this.hasValidClientDetail(clientDetail);
+
+      if (!hasClientDetail) {
+        console.log(
+          "🚫 No valid client detail found - using limited agents only",
+        );
+        return await this.processLimitedQuery(userQuery);
+      }
+
+      console.log("✅ Valid client detail found - using all agents");
+
       const classification = await this.classifyQuery(userQuery);
       if (!classification) {
         return this.createErrorResponse("Failed to classify query");
@@ -111,6 +137,82 @@ export class MultiAgentChatbot {
         error instanceof Error ? error.message : "Unknown error occurred",
       );
     }
+  }
+
+  // NEW: Process query with limited agents (only info and naturo)
+  private async processLimitedQuery(
+    userQuery: string,
+  ): Promise<AgentResponse<MergedResponseData>> {
+    try {
+      console.log("📚 Processing info query only...");
+
+      // Only use info agent
+      const infoResult = await this.agents.info(userQuery);
+
+      console.log(
+        "📖 Info Result:",
+        infoResult?.text ? "✅ Success" : "❌ None",
+      );
+
+      // Create a simplified classification for limited mode
+      const limitedClassification: QueryClassification = {
+        classification: "info",
+        sql_query: {
+          detected: false,
+          confidence: 0,
+          extracted_intent: null,
+        },
+        info_query: {
+          detected: true,
+          confidence: 1.0,
+          extracted_intent: userQuery,
+        },
+      };
+
+      // Merge with Naturo (simplified input)
+      const mergeInput = this.buildLimitedMergeInput(userQuery, infoResult);
+      console.log("🐸 Merging with Naturo (limited mode)...");
+      const mergedResponse = await this.agents.naturo(mergeInput);
+
+      return {
+        success: true,
+        data: {
+          response: mergedResponse.text,
+          classification: limitedClassification,
+          sql_data: null,
+          info_data: infoResult?.text || null,
+        },
+        source: "merged",
+      };
+    } catch (error) {
+      console.error("Error processing limited query:", error);
+      return this.createErrorResponse(
+        error instanceof Error ? error.message : "Unknown error occurred",
+      );
+    }
+  }
+
+  // NEW: Build merge input for limited mode (no SQL data)
+  private buildLimitedMergeInput(
+    originalQuery: string,
+    infoResult: AgentTextResponse | null,
+  ): string {
+    const sections: string[] = [
+      `Original User Query: "${originalQuery}"`,
+      `Query Classification: info_only (limited mode - no client detail available)`,
+    ];
+
+    if (infoResult?.text) {
+      sections.push(`Info Agent Response:\n${infoResult.text}`);
+    } else {
+      sections.push(`Info Agent Response: No information available`);
+    }
+
+    sections.push(
+      "Please respond as Naturo with your unique personality. Note that some personalized features are not available without client details, but provide helpful general information and encouragement.",
+    );
+
+    return sections.join("\n\n");
   }
 
   private async classifyQuery(
@@ -226,11 +328,8 @@ export class MultiAgentChatbot {
       infoResult,
     );
 
-    const finalPrompt = `${mergeInput} 
-    ###The original Question was :- ${originalQuery}`
-
     console.log("🐸 Merging with Naturo...");
-    return await this.agents.naturo(finalPrompt);
+    return await this.agents.naturo(mergeInput);
   }
 
   private buildMergeInput(
@@ -294,9 +393,13 @@ export class ChatbotManager {
     this.modelName = this.chatbot.modelName;
   }
 
-  async handleUserMessage(message: string): Promise<string> {
+  // UPDATED: handleUserMessage now accepts clientDetail parameter
+  async handleUserMessage(
+    message: string,
+    clientDetail?: ClientDetail,
+  ): Promise<string> {
     try {
-      const response = await this.chatbot.processQuery(message);
+      const response = await this.chatbot.processQuery(message, clientDetail);
       return this.formatResponse(response);
     } catch (error) {
       console.error("Chatbot error:", error);
@@ -322,13 +425,17 @@ export class ChatbotManager {
 export interface ChatbotExample {
   apiKey: string;
   userMessage: string;
+  clientDetail?: ClientDetail;
 }
 
 export async function exampleUsage(
-  { apiKey, userMessage }: ChatbotExample,
+  { apiKey, userMessage, clientDetail }: ChatbotExample,
 ): Promise<void> {
   const chatManager = new ChatbotManager(apiKey);
-  const response = await chatManager.handleUserMessage(userMessage);
+  const response = await chatManager.handleUserMessage(
+    userMessage,
+    clientDetail,
+  );
   console.log("Naturo says:", response);
   try {
     const coachTest = await chatManager.testComponent("coach", userMessage);

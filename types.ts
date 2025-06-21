@@ -45,7 +45,14 @@ export interface MergedResponseData {
   info_data: string | null;
 }
 
-// Server-specific types
+export interface ClientDetail {
+  personNumber?: string;
+  id?: string;
+  companyId?: string;
+  userId?: string;
+  [key: string]: any;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant" | "system";
@@ -68,6 +75,7 @@ export interface ChatRequest {
   message: string;
   userId?: string;
   createNewSession?: boolean;
+  clientDetail?: ClientDetail;
 }
 
 export interface ChatResponse {
@@ -76,6 +84,7 @@ export interface ChatResponse {
   context?: {
     totalMessages: number;
     sessionCreated: Date;
+    messageCount?: number; // NEW: Track current message count
   };
 }
 
