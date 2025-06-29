@@ -1,17 +1,58 @@
 import { ChatbotManager } from "./chatbot.ts";
+import { DatabaseConnection } from "./database.ts";
 import process from "node:process";
 
-// Example implementation of the multi-agent chatbot
+// Example implementation of the multi-agent chatbot with database integration
 class ChatbotApp {
   private chatManager: ChatbotManager;
+  private db: DatabaseConnection;
   private isInitialized: boolean = false;
 
   constructor() {
-    // Initialize with your Google AI API key
+
     const apiKey = Deno.env.get("GOOGLE_AI_API_KEY") || "your-api-key-here";
-    console.log("apikey=========", apiKey);
+    console.log(
+      "🔑 API Key configured:",
+      apiKey !== "your-api-key-here" ? "✅" : "❌",
+    );
+
     this.chatManager = new ChatbotManager(apiKey);
+    this.db = new DatabaseConnection();
     this.isInitialized = true;
+  }
+
+  async initializeDatabase() {
+    console.log("\n🗄️ Initializing database connection...");
+
+    try {
+      const isConnected = await this.chatManager.testDatabase();
+
+      if (isConnected) {
+        console.log("✅ Database connected successfully");
+
+        // Get basic database info
+        const dbInfo = await this.chatManager.getDatabaseInfo();
+        if (dbInfo.success && dbInfo.data) {
+          const tableCount = new Set(dbInfo.data.map((col: any) =>
+            col.table_name
+          )).size;
+          console.log(
+            `📊 Database contains ${tableCount} tables with ${dbInfo.data.length} total columns`,
+          );
+        }
+
+        return true;
+      } else {
+        console.log("❌ Database connection failed");
+        console.log(
+          "⚠️  SQL queries will not work, but info queries will still function",
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("Database initialization error:", error);
+      return false;
+    }
   }
 
   async runExamples() {
@@ -22,22 +63,22 @@ class ChatbotApp {
 
     console.log("🐸 Starting Naturo Chatbot Examples...\n");
 
-    // Test different types of queries
+    // Test different types of queries including database queries
     const testQueries = [
-      // SQL only query
-      "Show me my order history from last month",
+      // SQL queries (will work if database is connected)
+      "What is the total amount of money we have invested in our landscape ?",
+      "What is the impact of my contributions in our landscape ?",
+      "How many hectares is my organization caring for with our subscription ?",
 
-      // Info only query
-      "What is machine learning?",
+      // Info only queries
+      "What is regenera trying to do?",
+      "Tell me about biodiversity credits",
 
-      // Hybrid query
-      "Explain blockchain technology and show me my crypto transactions",
+      // Hybrid queries
+      "Explain carbon footprint and show me our emissions data",
 
-      // Another hybrid
-      "What are the benefits of meditation and how many meditation sessions have I completed this week?",
-
-      // Unclear/general query
-      "I need help with my life",
+      // General queries
+      "I need help with my environmental impact",
     ];
 
     for (const query of testQueries) {
@@ -46,8 +87,20 @@ class ChatbotApp {
       console.log(`${"=".repeat(60)}`);
 
       try {
-        const response = await this.chatManager.handleUserMessage(query);
+        const response = await this.chatManager.handleUserMessage(query, {
+          id: "demo-user",
+          companyId: "demo-company",
+          userId: "demo-user",
+        });
         console.log(`🐸 Naturo: ${response}`);
+
+        // Check if response includes database results
+        if (
+          response.includes("Database Results") ||
+          response.includes("Query executed")
+        ) {
+          console.log("🗄️ [Database integration active]");
+        }
       } catch (error) {
         console.log(`❌ Error: ${error}`);
       }
@@ -57,11 +110,50 @@ class ChatbotApp {
     }
   }
 
+  async testDatabaseQueries() {
+    console.log("\n🗄️ Testing Database-Specific Queries...\n");
+
+    const dbQueries = [
+      "What landscape is my organization 20 subscribed to ?",
+      "What plan is my organization 20 subscribed to ?",
+      "Since when is my organization 20 contributing to Regenera ?",
+      "What is the total amount of money we have invested in our landscape ?",
+      "What is the impact of my contributions in our landscape ?",
+      "How many hectares is my organization caring for with our subscription ?",
+      "What are the key species being protected in our landscape ?",
+      "How many Guardians are we working with in our landscape ?",
+      "Remind me how many livelihoods of local people we are supporting in our landscape ?",
+    ];
+
+    for (const query of dbQueries) {
+      console.log(`\n📊 Database Query: ${query}`);
+      console.log("-".repeat(50));
+
+      try {
+        const response = await this.chatManager.handleUserMessage(query, {
+          id: "3",
+          companyId: "20",
+          userId: "3",
+        });
+
+        console.log(
+          `🐸 Response: ${response.substring(0, 500)}${
+            response.length > 500 ? "..." : ""
+          }`,
+        );
+      } catch (error) {
+        console.log(`❌ Query failed: ${error}`);
+      }
+
+      await this.delay(3000); // Longer delay for database queries
+    }
+  }
+
   async testIndividualAgents() {
     console.log("\n🧪 Testing Individual Agents...\n");
 
     const testQuery =
-      "What is artificial intelligence and show me my AI course progress?";
+      "What is our total carbon footprint and show me our emissions data?";
 
     // Test Coach Agent
     console.log("🎯 Testing Coach Agent (Classification):");
@@ -77,30 +169,30 @@ class ChatbotApp {
 
     await this.delay(1000);
 
+    // Test SQL Agent with database integration
+    console.log("\n🗄️ Testing SQL Agent with Database:");
+    try {
+      const sqlResult = await this.chatManager.testComponent(
+        "sql",
+        "Show me all organizations in our database",
+      );
+      console.log(sqlResult.text);
+    } catch (error) {
+      console.log(`❌ SQL Agent Error: ${error}`);
+    }
+
+    await this.delay(1000);
+
     // Test Info Agent
     console.log("\n📚 Testing Info Agent:");
     try {
       const infoResult = await this.chatManager.testComponent(
         "info",
-        "What is artificial intelligence?",
+        "What are biodiversity credits?",
       );
       console.log(infoResult.text);
     } catch (error) {
       console.log(`❌ Info Agent Error: ${error}`);
-    }
-
-    await this.delay(1000);
-
-    // Test SQL Agent
-    console.log("\n🗄️ Testing SQL Agent:");
-    try {
-      const sqlResult = await this.chatManager.testComponent(
-        "sql",
-        "Show me my AI course progress",
-      );
-      console.log(sqlResult.text);
-    } catch (error) {
-      console.log(`❌ SQL Agent Error: ${error}`);
     }
 
     await this.delay(1000);
@@ -113,20 +205,22 @@ class ChatbotApp {
         
         Query Classification: hybrid
         
-        SQL Agent Response:
-        {
-          "sql_query": "SELECT c.name, p.progress_percentage, p.last_updated FROM courses c JOIN user_progress p ON c.id = p.course_id WHERE c.category = 'AI' AND p.user_id = ?",
-          "explanation": "Retrieve user's progress in AI-related courses",
-          "parameters": ["user_id"],
-          "estimated_complexity": "medium"
-        }
+        SQL Agent Response (with Database Results):
+        📊 Database Results:
+        ✅ Query executed successfully!
+        
+        📊 Query Results (5 rows):
+        
+        id   | organization_name        | carbon_emissions
+        -----|--------------------------|------------------
+        1    | EcoTech Solutions       | 1250.5
+        2    | Green Energy Corp       | 890.2
+        3    | Sustainable Foods Ltd   | 2100.8
+        4    | CleanWater Systems      | 670.3
+        5    | Renewable Resources     | 1480.6
         
         Info Agent Response:
-        {
-          "answer": "Artificial Intelligence (AI) is a branch of computer science focused on creating systems that can perform tasks typically requiring human intelligence...",
-          "key_points": ["Machine learning is a subset of AI", "AI applications include natural language processing", "AI systems learn from data"],
-          "related_topics": ["Machine Learning", "Deep Learning", "Neural Networks"]
-        }
+        Carbon footprint represents the total greenhouse gas emissions caused by activities, measured in CO2 equivalent. Organizations track this to understand environmental impact and work toward net-zero goals.
         
         Please respond as Naturo, combining this information into a cohesive, helpful response with your unique personality and coaching style.
       `;
@@ -145,19 +239,21 @@ class ChatbotApp {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  // Interactive chat session
+  // Interactive chat session with database capabilities
   async startInteractiveChat() {
-    console.log("\n🐸 Starting Interactive Chat with Naturo...");
+    console.log(
+      "\n🐸 Starting Interactive Chat with Naturo (Database-Enhanced)...",
+    );
     console.log("Type 'exit' to end the conversation\n");
 
-    // This would be replaced with actual user input in a real application
-    // For now, we'll simulate a conversation
+    // Enhanced conversation examples with database queries
     const simulatedConversation = [
       "Hello Naturo!",
-      "What is your purpose?",
-      "Show me my recent activities",
-      "Explain quantum computing",
-      "How can I improve my productivity and show me my task completion rates?",
+      "What databases do we have available?",
+      "Show me our organization data",
+      "How many landscape subscriptions do we have?",
+      "Explain what biodiversity credits are",
+      "What's our environmental impact based on the data?",
       "exit",
     ];
 
@@ -165,7 +261,7 @@ class ChatbotApp {
       if (message === "exit") {
         console.log("👤 User: exit");
         console.log(
-          "🐸 Naturo: Life on earth is complicated, but you're doing great! Until next time, get out there and do something good! 🐸",
+          "🐸 Naturo: Life on earth is complicated, but you're doing great! The data shows we're making progress. Until next time, get out there and do something good! 🐸",
         );
         break;
       }
@@ -173,8 +269,20 @@ class ChatbotApp {
       console.log(`👤 User: ${message}`);
 
       try {
-        const response = await this.chatManager.handleUserMessage(message);
+        const response = await this.chatManager.handleUserMessage(message, {
+          id: "demo-user",
+          companyId: "regenera",
+          userId: "demo-user",
+        });
         console.log(`🐸 Naturo: ${response}\n`);
+
+        // Indicate if database was used
+        if (
+          response.includes("Database Results") ||
+          response.includes("Query executed")
+        ) {
+          console.log("   💾 [Response included database query results]\n");
+        }
       } catch (error) {
         console.log(`❌ Error: ${error}\n`);
       }
@@ -189,15 +297,31 @@ async function main() {
   const app = new ChatbotApp();
 
   try {
-    // Run different test scenarios
+    // Initialize database connection
+    const dbReady = await app.initializeDatabase();
+
+    if (dbReady) {
+      console.log("\n🚀 Running with full database integration");
+
+      // Test database-specific queries
+      await app.testDatabaseQueries();
+    } else {
+      console.log("\n⚠️  Running in limited mode (info queries only)");
+    }
+
+    console.log("\n" + "=".repeat(60));
+
+    // Run standard examples
     await app.runExamples();
 
     console.log("\n" + "=".repeat(60));
 
+    // Test individual agents
     await app.testIndividualAgents();
 
     console.log("\n" + "=".repeat(60));
 
+    // Interactive chat
     await app.startInteractiveChat();
   } catch (error) {
     console.error("Application error:", error);
@@ -206,7 +330,9 @@ async function main() {
 
 // Environment setup helper
 function setupEnvironment() {
-  console.log("🚀 Setting up Naturo Multi-Agent Chatbot Environment...\n");
+  console.log(
+    "🚀 Setting up Naturo Multi-Agent Chatbot with Database Integration...\n",
+  );
 
   // Check for required environment variables
   if (!process.env.GOOGLE_AI_API_KEY) {
@@ -218,11 +344,23 @@ function setupEnvironment() {
   }
 
   console.log("📋 System Overview:");
-  console.log("1. Coach Agent - Classifies queries (SQL vs Info)");
-  console.log("2. SQL Agent - Converts natural language to SQL");
-  console.log("3. Info Agent - Provides general information");
-  console.log("4. Naturo Agent - Merges responses with personality");
-  console.log("\n🐸 Ready to chat with Naturo!\n");
+  console.log("1. 🎯 Coach Agent - Classifies queries (SQL vs Info)");
+  console.log(
+    "2. 🗄️ SQL Agent - Converts natural language to SQL + executes queries",
+  );
+  console.log("3. 📚 Info Agent - Provides general information");
+  console.log("4. 🐸 Naturo Agent - Merges responses with personality");
+  console.log("5. 💾 Database - PostgreSQL integration for real data");
+
+  console.log("\n🔗 Database Configuration:");
+  console.log("   Host: ec2-3-235-177-45.compute-1.amazonaws.com");
+  console.log("   Port: 5432");
+  console.log("   Database: regenera_core");
+  console.log("   Status: Will be tested on startup");
+
+  console.log(
+    "\n🐸 Ready to chat with Naturo (now with database superpowers)!\n",
+  );
 }
 
 // Export for use in other modules

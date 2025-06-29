@@ -29,7 +29,7 @@ const ChatExample: React.FC = () => {
     personNumber: "P123456",
     id: "demo-user",
     companyId: "REGENERA_EARTH",
-    userId: "demo-user"
+    userId: "demo-user",
   };
 
   const handleError = (error: string) => {
@@ -46,7 +46,7 @@ const ChatExample: React.FC = () => {
 
   const handleMessageReceived = (message: ChatMessage) => {
     console.log("Message received:", message);
-    
+
     // NEW: Check if this message indicates credits exhausted
     if (message.isCreditsExhausted) {
       setCreditsExhausted(true);
@@ -58,7 +58,7 @@ const ChatExample: React.FC = () => {
   const handleCreditsExhausted = () => {
     setCreditsExhausted(true);
     console.log("🚫 AI Credits have been exhausted!");
-    
+
     // Optional: Show a notification or modal
     // You could also disable certain features or show upgrade options
   };
@@ -78,11 +78,13 @@ const ChatExample: React.FC = () => {
             <div className="">
               <h1>Regenera Earth 🌿</h1>
               <h2>* This is an existing page *</h2>
-              
+
               {/* NEW: Show credits status even when chat is minimized */}
               {creditsExhausted && (
                 <div className="credits-banner">
-                  <span>🚫 Chat credits exhausted. Start a new session to continue.</span>
+                  <span>
+                    🚫 Chat credits exhausted. Start a new session to continue.
+                  </span>
                   <button onClick={handleNewChat} className="reset-button">
                     🔄 New Session
                   </button>
@@ -114,19 +116,27 @@ const ChatExample: React.FC = () => {
                 >
                   ⬇️ Minimize Chat
                 </button>
-                
+
                 {/* NEW: Enhanced chat info with credits status */}
                 <div className="chat-info">
-                  {creditsExhausted ? (
-                    <div className="credits-info-exhausted">
-                      <span>🚫 Credits exhausted</span>
-                      <button onClick={handleNewChat} className="new-session-btn">
-                        Start New Session
-                      </button>
-                    </div>
-                  ) : (
-                    <span>💡 Tip: Ask me about your data or general topics! ({messageCount}/10 messages used)</span>
-                  )}
+                  {creditsExhausted
+                    ? (
+                      <div className="credits-info-exhausted">
+                        <span>🚫 Credits exhausted</span>
+                        <button
+                          onClick={handleNewChat}
+                          className="new-session-btn"
+                        >
+                          Start New Session
+                        </button>
+                      </div>
+                    )
+                    : (
+                      <span>
+                        💡 Tip: Ask me about your data or general topics!
+                        ({messageCount}/10 messages used)
+                      </span>
+                    )}
                 </div>
               </div>
 
@@ -143,12 +153,20 @@ const ChatExample: React.FC = () => {
 
       {!showChat && (
         <button
-          className={`floating-chat-button ${creditsExhausted ? 'exhausted' : ''}`} // NEW: Different styling when exhausted
+          className={`floating-chat-button ${
+            creditsExhausted ? "exhausted" : ""
+          }`} // NEW: Different styling when exhausted
           onClick={() => setShowChat(true)}
-          title={creditsExhausted ? "Chat credits exhausted" : "Open chat with Naturo"}
+          title={creditsExhausted
+            ? "Chat credits exhausted"
+            : "Open chat with Naturo"}
         >
           {creditsExhausted ? "🚫" : "💬"}
-          <span className={`notification-badge ${creditsExhausted ? 'exhausted' : ''}`}>
+          <span
+            className={`notification-badge ${
+              creditsExhausted ? "exhausted" : ""
+            }`}
+          >
             {creditsExhausted ? "!" : messageCount}
           </span>
         </button>

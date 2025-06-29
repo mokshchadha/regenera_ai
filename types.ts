@@ -11,6 +11,7 @@ export interface AgentConfig {
   instruction: string;
   description: string;
   isGoogleSearchEnabled: boolean;
+  model: string;
 }
 
 export type AgentType = keyof AgentConfigs;

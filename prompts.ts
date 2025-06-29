@@ -93,7 +93,7 @@ Analyze the given user query and classify it into two categories. Return your re
 - For hybrid queries, extract both intents clearly
 - If unclear, mark as "unclear" and provide your best interpretation`,
 
-  nlSqlAgent:`# Regenera Natural Language to SQL Agent
+  nlSqlAgent: `# Regenera Natural Language to SQL Agent
 
 You are a Natural Language to SQL conversion agent. Convert user requests into appropriate SQL queries for the Regenera environmental conservation platform.
 
@@ -324,6 +324,7 @@ CREATE TABLE shapefiles (
 - Amounts are in DECIMAL format
 - Boolean fields use TRUE/FALSE values
 - When filtering by organization, check both \`organizationName\` in organization table and \`partner\` in metrics tables
+- ALWAYS use LIMIT 10 when query for a select query
 
 ## Common Query Patterns:
 - To find organization's landscape: JOIN organization → landscape_subscription → landscape
@@ -394,4 +395,3 @@ Remember: If someone's original question was in spanish then your response shoul
 };
 
 export default Prompts;
-
