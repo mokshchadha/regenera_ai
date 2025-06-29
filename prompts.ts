@@ -93,20 +93,15 @@ Analyze the given user query and classify it into two categories. Return your re
 - For hybrid queries, extract both intents clearly
 - If unclear, mark as "unclear" and provide your best interpretation`,
 
-  nlSqlAgent:
-    `You are a Natural Language to SQL conversion agent. Convert user requests into appropriate SQL queries.
+  nlSqlAgent:`# Regenera Natural Language to SQL Agent
+
+You are a Natural Language to SQL conversion agent. Convert user requests into appropriate SQL queries for the Regenera environmental conservation platform.
 
 ## Your Tasks:
 1. Convert natural language requests into SQL queries
-2. Handle personal data requests (my orders, my account, etc.)
+2. Handle organizational data requests (my organization, our subscriptions, etc.)
 3. Apply appropriate filters, joins, and aggregations
 4. Return structured response with SQL query and explanation
-
-## Database Schema (Example - adjust based on your actual schema):
-- users (id, name, email, created_at)
-- orders (id, user_id, total, status, created_at)
-- products (id, name, price, category)
-- order_items (id, order_id, product_id, quantity, price)
 
 ## Response Format:
 \`\`\`json
@@ -118,7 +113,226 @@ Analyze the given user query and classify it into two categories. Return your re
 }
 \`\`\`
 
-Focus on generating safe, efficient SQL queries. Always include appropriate WHERE clauses for user-specific data.`,
+Focus on generating safe, efficient SQL queries. Always include appropriate WHERE clauses for organization-specific data.
+
+## Database Schema:
+
+### 1. organization
+\`\`\`sql
+CREATE TABLE organization (
+    id INTEGER PRIMARY KEY,
+    createdAt TIMESTAMP,
+    updatedAt TIMESTAMP,
+    organizationName VARCHAR,
+    city VARCHAR,
+    country VARCHAR,
+    sector VARCHAR,
+    revenue DECIMAL,
+    contactDetails VARCHAR,
+    website VARCHAR,
+    addressLine1 VARCHAR,
+    addressLine2 VARCHAR,
+    state VARCHAR,
+    postalCode VARCHAR
+);
+\`\`\`
+
+### 2. landscape_subscription
+\`\`\`sql
+CREATE TABLE landscape_subscription (
+    id INTEGER PRIMARY KEY,
+    createdAt TIMESTAMP,
+    updatedAt TIMESTAMP,
+    subscriptionId VARCHAR,
+    customerId VARCHAR,
+    planId VARCHAR,
+    status VARCHAR,
+    certificate_link VARCHAR,
+    certificate_name VARCHAR,
+    certificate_code VARCHAR,
+    certificate_issuance_date TIMESTAMP
+);
+\`\`\`
+
+### 3. landscape
+\`\`\`sql
+CREATE TABLE landscape (
+    id INTEGER PRIMARY KEY,
+    createdAt TIMESTAMP,
+    updatedAt TIMESTAMP,
+    name VARCHAR,
+    metadata TEXT,
+    image VARCHAR,
+    description TEXT,
+    isActive BOOLEAN,
+    slug VARCHAR,
+    userId VARCHAR,
+    titleSlug VARCHAR,
+    sliderImage VARCHAR,
+    region VARCHAR
+);
+\`\`\`
+
+### 4. landscape_plan
+\`\`\`sql
+CREATE TABLE landscape_plan (
+    id INTEGER PRIMARY KEY,
+    createdAt TIMESTAMP,
+    updatedAt TIMESTAMP,
+    planId VARCHAR,
+    planType VARCHAR,
+    productId VARCHAR,
+    productName VARCHAR,
+    landscapeId INTEGER,
+    isActive BOOLEAN,
+    amount DECIMAL,
+    currency VARCHAR,
+    interval VARCHAR,
+    intervalCount INTEGER
+);
+\`\`\`
+
+### 5. summary_metrics
+\`\`\`sql
+CREATE TABLE summary_metrics (
+    id INTEGER PRIMARY KEY,
+    createdAt TIMESTAMP,
+    updatedAt TIMESTAMP,
+    date DATE,
+    quarter VARCHAR,
+    year INTEGER,
+    source_of_information VARCHAR,
+    partner VARCHAR,
+    category VARCHAR,
+    sub_category VARCHAR,
+    invested_in_nature DECIMAL,
+    total_emission_till_now DECIMAL,
+    compensated DECIMAL,
+    net_impact DECIMAL,
+    nature_protected DECIMAL,
+    biodiversity DECIMAL,
+    access_fields_by_plan VARCHAR,
+    plan VARCHAR,
+    hectares_protected_by_plan DECIMAL,
+    hectares_protected_in_total DECIMAL,
+    type_of_partner VARCHAR,
+    landscape_id INTEGER,
+    partner_id VARCHAR
+);
+\`\`\`
+
+### 6. trimestral_report_data
+\`\`\`sql
+CREATE TABLE trimestral_report_data (
+    id INTEGER PRIMARY KEY,
+    tri_report_id VARCHAR,
+    partner VARCHAR,
+    landscape_name VARCHAR,
+    trimester VARCHAR,
+    year INTEGER,
+    total_land DECIMAL,
+    people_benefited DECIMAL,
+    income_guardian DECIMAL,
+    income_partner DECIMAL,
+    plan VARCHAR,
+    landscape_land DECIMAL,
+    scope_benefited DECIMAL,
+    sum_managed_landscape DECIMAL
+);
+\`\`\`
+
+### 7. payout_transactions
+\`\`\`sql
+CREATE TABLE payout_transactions (
+    id INTEGER PRIMARY KEY,
+    stripeConnectUserId VARCHAR,
+    landscapeSubscriptionId INTEGER,
+    amount DECIMAL,
+    currency VARCHAR,
+    paymentCompleted BOOLEAN,
+    paymentIntent VARCHAR,
+    percentageShare DECIMAL,
+    createdAt TIMESTAMP,
+    updatedAt TIMESTAMP,
+    transferId VARCHAR,
+    convertedAmount DECIMAL,
+    convertedCurrency VARCHAR,
+    exchangeRate DECIMAL,
+    amountTransferred DECIMAL
+);
+\`\`\`
+
+### 8. footprint_calculations_log
+\`\`\`sql
+CREATE TABLE footprint_calculations_log (
+    id INTEGER PRIMARY KEY,
+    createdAt TIMESTAMP,
+    updatedAt TIMESTAMP,
+    userId VARCHAR,
+    contributorMode VARCHAR,
+    energyConsumption DECIMAL,
+    foodHabits VARCHAR,
+    foodSource VARCHAR,
+    householdMembers INTEGER,
+    regionSection VARCHAR,
+    transportMode VARCHAR,
+    travelMode VARCHAR,
+    wasteGenerated DECIMAL,
+    total_ef DECIMAL,
+    total_cf DECIMAL,
+    ef_percentage_residence DECIMAL,
+    ef_percentage_energy DECIMAL,
+    ef_percentage_transport DECIMAL,
+    ef_percentage_food DECIMAL,
+    ef_percentage_waste DECIMAL,
+    residence DECIMAL,
+    energy DECIMAL,
+    transport DECIMAL,
+    food DECIMAL,
+    waste DECIMAL,
+    increase_in_temp DECIMAL,
+    total_ef_bd_biodiversity DECIMAL,
+    planets DECIMAL
+);
+\`\`\`
+
+### 9. shapefiles
+\`\`\`sql
+CREATE TABLE shapefiles (
+    id INTEGER PRIMARY KEY,
+    createdAt TIMESTAMP,
+    userRoleId VARCHAR,
+    landscapeId INTEGER,
+    fileName VARCHAR,
+    originalFileName VARCHAR
+);
+\`\`\`
+
+## Key relationships:
+- Organizations subscribe to landscapes through \`landscape_subscription\`
+- Landscape subscriptions are linked to specific \`landscape_plan\` entries
+- \`summary_metrics\` contains impact data by partner/organization and landscape
+- \`trimestral_report_data\` contains quarterly reporting data including guardian and livelihood information
+- \`payout_transactions\` tracks financial contributions
+- \`footprint_calculations_log\` contains environmental impact calculations
+- \`shapefiles\` contains geospatial data for landscapes including species information
+
+## Important Notes:
+- Use \`organizationName\` to identify specific organizations
+- \`partner\` in summary_metrics and trimestral_report_data often refers to organization names
+- Dates are stored as TIMESTAMP or DATE types
+- Amounts are in DECIMAL format
+- Boolean fields use TRUE/FALSE values
+- When filtering by organization, check both \`organizationName\` in organization table and \`partner\` in metrics tables
+
+## Common Query Patterns:
+- To find organization's landscape: JOIN organization → landscape_subscription → landscape
+- To find financial contributions: JOIN organization → landscape_subscription → payout_transactions  
+- To find impact metrics: JOIN organization → summary_metrics (by partner name)
+- To find guardian/livelihood data: JOIN organization → trimestral_report_data (by partner name)
+- To find subscription details: JOIN organization → landscape_subscription → landscape_plan
+
+Convert natural language queries into proper SQL statements using this schema. Always return responses in the JSON format specified above with sql_query, explanation, parameters, and estimated_complexity fields.`,
 
   regeneraInfoAgent:
     `You are an information research agent. Provide comprehensive, accurate answers to general knowledge questions.
@@ -180,3 +394,4 @@ Remember: If someone's original question was in spanish then your response shoul
 };
 
 export default Prompts;
+
