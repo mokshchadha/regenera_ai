@@ -1,17 +1,18 @@
 import {
   Application,
-  Middleware,
+  Context,
+  Next,
   Router,
   RouterContext,
 } from "https://deno.land/x/oak@v12.6.1/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 import { ChatbotManager } from "./chatbot.ts";
+import { regeneraDB } from "./sql-executor.ts";
 import {
   ChatMessage,
   ChatRequest,
   ChatResponse,
   ChatSession,
-  ClientDetail,
   SessionsResponse,
 } from "./types.ts";
 import { handleError } from "./utils.ts";
@@ -32,6 +33,40 @@ if (!API_KEY) {
 
 // Initialize chatbot manager
 const chatbotManager = new ChatbotManager(API_KEY);
+
+// NEW: Database status
+let isDatabaseConnected = false;
+
+// NEW: Function to initialize database
+async function initializeDatabase(): Promise<void> {
+  console.log("🗄️ Initializing database connection...");
+  try {
+    isDatabaseConnected = await regeneraDB.testConnection();
+
+    if (isDatabaseConnected) {
+      console.log("✅ Database connection successful");
+
+      // Get basic schema info
+      const tableInfo = await regeneraDB.getTableInfo();
+      if (tableInfo.success && tableInfo.data) {
+        const tables = [
+          ...new Set(tableInfo.data.map((row: any) => row.table_name)),
+        ];
+        console.log(
+          `📋 Available tables: ${tables.slice(0, 5).join(", ")}${
+            tables.length > 5 ? "..." : ""
+          }`,
+        );
+      }
+    } else {
+      console.log("❌ Database connection failed");
+      console.log("⚠️ SQL features will be limited");
+    }
+  } catch (error) {
+    console.error("❌ Database initialization error:", error);
+    isDatabaseConnected = false;
+  }
+}
 
 // NEW: Function to count user messages in a session
 function getUserMessageCount(session: ChatSession): number {
@@ -97,7 +132,7 @@ app.use(oakCors({
   credentials: true,
 }));
 
-app.use(async (ctx: RouterContext, next: Middleware) => {
+app.use(async (ctx: Context, next: Next) => {
   try {
     await next();
   } catch (err: unknown) {
@@ -105,15 +140,97 @@ app.use(async (ctx: RouterContext, next: Middleware) => {
   }
 });
 
-router.get("/health", (ctx: RouterContext) => {
+// UPDATED: Health endpoint with database status
+router.get("/health", (ctx: RouterContext<string>) => {
   ctx.response.body = {
     status: "ok",
     timestamp: new Date(),
     sessionsCount: sessions.size,
+    database: {
+      connected: isDatabaseConnected,
+      status: isDatabaseConnected ? "connected" : "disconnected",
+    },
+    features: {
+      sqlQueries: isDatabaseConnected,
+      infoQueries: true,
+      chatbot: true,
+    },
   };
 });
 
-router.post("/sessions", async (ctx: RouterContext) => {
+// NEW: Database status endpoint
+router.get("/database/status", async (ctx: RouterContext<string>) => {
+  try {
+    const connectionTest = await regeneraDB.testConnection();
+    isDatabaseConnected = connectionTest;
+
+    ctx.response.body = {
+      connected: connectionTest,
+      host: Deno.env.get("DB_HOST"),
+      port: Deno.env.get("DB_PORT"),
+      database:Deno.env.get("DB_NAME"),
+      timestamp: new Date(),
+    };
+  } catch (error) {
+    ctx.response.status = 500;
+    ctx.response.body = {
+      connected: false,
+      error: error,
+      timestamp: new Date(),
+    };
+  }
+});
+
+// NEW: Database schema endpoint
+router.get("/database/schema", async (ctx: RouterContext<string>) => {
+  if (!isDatabaseConnected) {
+    ctx.response.status = 503;
+    ctx.response.body = { error: "Database not connected" };
+    return;
+  }
+
+  try {
+    const tableInfo = await regeneraDB.getTableInfo();
+
+    if (tableInfo.success) {
+      // Group columns by table
+      const schema: Record<string, any[]> = {};
+      tableInfo.data?.forEach((row: any) => {
+        if (!schema[row.table_name]) {
+          schema[row.table_name] = [];
+        }
+        schema[row.table_name].push({
+          column: row.column_name,
+          type: row.data_type,
+          nullable: row.is_nullable === "YES",
+        });
+      });
+
+      ctx.response.body = {
+        success: true,
+        tables: Object.keys(schema),
+        schema: schema,
+        timestamp: new Date(),
+      };
+    } else {
+      ctx.response.status = 500;
+      ctx.response.body = {
+        success: false,
+        error: tableInfo.error,
+        timestamp: new Date(),
+      };
+    }
+  } catch (error) {
+    ctx.response.status = 500;
+    ctx.response.body = {
+      success: false,
+      error: error,
+      timestamp: new Date(),
+    };
+  }
+});
+
+router.post("/sessions", async (ctx: RouterContext<string>) => {
   const body = await ctx.request.body().value;
   const userId = body?.userId;
 
@@ -124,10 +241,11 @@ router.post("/sessions", async (ctx: RouterContext) => {
     sessionId: session.id,
     userId: session.userId,
     createdAt: session.createdAt,
+    databaseStatus: isDatabaseConnected ? "connected" : "disconnected",
   };
 });
 
-router.get("/sessions/:sessionId", (ctx: RouterContext) => {
+router.get("/sessions/:sessionId", (ctx: RouterContext<string>) => {
   const { sessionId } = ctx.params;
   const session = getSession(sessionId);
 
@@ -149,10 +267,11 @@ router.get("/sessions/:sessionId", (ctx: RouterContext) => {
     creditsRemaining: Math.max(0, MAX_MESSAGES_PER_SESSION - userMessageCount), // NEW: Credits remaining
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
+    databaseStatus: isDatabaseConnected ? "connected" : "disconnected", // NEW: Database status
   };
 });
 
-router.get("/sessions/:sessionId/messages", (ctx: RouterContext) => {
+router.get("/sessions/:sessionId/messages", (ctx: RouterContext<string>) => {
   const { sessionId } = ctx.params;
   const session = getSession(sessionId);
 
@@ -170,11 +289,12 @@ router.get("/sessions/:sessionId/messages", (ctx: RouterContext) => {
     userMessageCount: userMessageCount, // NEW: Include user message count
     maxMessages: MAX_MESSAGES_PER_SESSION, // NEW: Include limit
     creditsRemaining: Math.max(0, MAX_MESSAGES_PER_SESSION - userMessageCount), // NEW: Credits remaining
+    databaseStatus: isDatabaseConnected ? "connected" : "disconnected", // NEW: Database status
   };
 });
 
 // UPDATED: Main chat endpoint with client detail handling and message limits
-router.post("/chat", async (ctx: RouterContext) => {
+router.post("/chat", async (ctx: RouterContext<string>) => {
   const body: ChatRequest = await ctx.request.body().value;
   const { sessionId, message, createNewSession, clientDetail } = body;
 
@@ -268,7 +388,7 @@ router.post("/chat", async (ctx: RouterContext) => {
   }
 
   try {
-    // NEW: Log client detail availability
+    // NEW: Log client detail availability and database status
     if (clientDetail) {
       console.log(`✅ Client detail provided for session ${session.id}:`, {
         hasPersonNumber: !!clientDetail.personNumber,
@@ -281,6 +401,12 @@ router.post("/chat", async (ctx: RouterContext) => {
         `🚫 No client detail provided for session ${session.id} - using limited agents`,
       );
     }
+
+    console.log(
+      `🗄️ Database status: ${
+        isDatabaseConnected ? "Connected" : "Disconnected"
+      }`,
+    );
 
     const context = session.messages
       .slice(-10)
@@ -324,7 +450,7 @@ router.post("/chat", async (ctx: RouterContext) => {
   }
 });
 
-router.delete("/sessions/:sessionId", (ctx: RouterContext) => {
+router.delete("/sessions/:sessionId", (ctx: RouterContext<string>) => {
   const { sessionId } = ctx.params;
 
   if (deleteSession(sessionId)) {
@@ -335,7 +461,7 @@ router.delete("/sessions/:sessionId", (ctx: RouterContext) => {
   }
 });
 
-router.get("/sessions", (ctx: RouterContext) => {
+router.get("/sessions", (ctx: RouterContext<string>) => {
   const sessionList = Array.from(sessions.values()).map((session) => {
     const userMessageCount = getUserMessageCount(session);
     return {
@@ -363,6 +489,9 @@ router.get("/sessions", (ctx: RouterContext) => {
 app.use(router.routes());
 app.use(router.allowedMethods());
 
+// Initialize database before starting server
+await initializeDatabase();
+
 console.log(`Chatbot server starting on port ${PORT}...`);
 console.log(`Environment: ${Deno.env.get("DENO_ENV") || "development"}`);
 console.log(
@@ -372,7 +501,20 @@ console.log(`📊 Configuration:`);
 console.log(`  - Max messages per session: ${MAX_MESSAGES_PER_SESSION}`);
 console.log(`  - Client detail validation: enabled`);
 console.log(
+  `  - Database connection: ${
+    isDatabaseConnected ? "✅ Connected" : "❌ Disconnected"
+  }`,
+);
+console.log(
+  `  - SQL features: ${isDatabaseConnected ? "✅ Enabled" : "❌ Limited"}`,
+);
+console.log(
   `  - Limited agents mode: info + naturo only (when no client detail)`,
 );
+
+if (!isDatabaseConnected) {
+  console.log(`⚠️  Database connection failed. SQL queries will not work.`);
+  console.log(`   Check your database credentials and network connectivity.`);
+}
 
 await app.listen({ port: PORT });

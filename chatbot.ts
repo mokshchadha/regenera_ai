@@ -1,8 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
 // chatbot.ts
 import { GoogleAIAgent } from "./google-ai-agent.ts";
-import Prompts from "./prompts.ts";
+import Prompts from "./prompts/prompts.ts";
 import { sanitizeJsonOutput } from "./utils.ts";
+import { QueryResult, regeneraDB } from "./sql-executor.ts";
 import {
   AgentConfigs,
   AgentSource,
@@ -45,7 +46,7 @@ export class MultiAgentChatbot {
       sql: {
         name: "SQLAgent",
         instruction: Prompts.nlSqlAgent,
-        description: "Convert natural language to SQL queries",
+        description: "Convert natural language to SQL queries and execute them",
         isGoogleSearchEnabled: false,
       },
       info: {
@@ -81,6 +82,132 @@ export class MultiAgentChatbot {
       clientDetail.companyId ||
       clientDetail.userId
     );
+  }
+
+  // NEW: Execute SQL query and format results
+  private async executeSQLQuery(sqlQuery: string): Promise<{
+    success: boolean;
+    data?: string;
+    error?: string;
+  }> {
+    try {
+      console.log("🗄️ Executing SQL query against PostgreSQL database...");
+
+      const result: QueryResult = await regeneraDB.executeQuery(sqlQuery);
+
+      if (!result.success) {
+        return {
+          success: false,
+          error: `Database error: ${result.error}`,
+        };
+      }
+
+      // Format the results for display
+      const formattedResult = {
+        query_executed: result.executedQuery,
+        row_count: result.rowCount || 0,
+        data: result.data || [],
+        message: result.rowCount === 0
+          ? "Query executed successfully but returned no results."
+          : `Query executed successfully. Retrieved ${result.rowCount} row(s).`,
+      };
+
+      return {
+        success: true,
+        data: JSON.stringify(formattedResult, null, 2),
+      };
+    } catch (error) {
+      console.error("❌ SQL execution error:", error);
+      return {
+        success: false,
+        error: `SQL execution failed: ${error}`,
+      };
+    }
+  }
+
+  // UPDATED: Enhanced SQL agent processing with database execution
+  private async processSQLAgent(
+    userQuery: string,
+    queryDetails: QueryDetails,
+  ): Promise<AgentTextResponse | null> {
+    try {
+      console.log("🗄️ Processing SQL query with database execution...");
+
+      // Get SQL query from the agent
+      const sqlAgentResponse = await this.agents.sql(
+        queryDetails.extracted_intent || userQuery,
+      );
+
+      if (!sqlAgentResponse?.text) {
+        return {
+          text: JSON.stringify(
+            {
+              error: "SQL agent failed to generate a response",
+              sql_query: null,
+              execution_result: null,
+            },
+            null,
+            2,
+          ),
+        };
+      }
+
+      console.log("🔍 SQL Agent response:", sqlAgentResponse.text);
+
+      // Try to parse the SQL query from the agent response
+      let sqlQuery: string | null = null;
+      let agentData: any = null;
+
+      try {
+        // Try to parse as JSON first
+        agentData = JSON.parse(sqlAgentResponse.text);
+        sqlQuery = agentData.sql_query;
+      } catch {
+        // If not JSON, treat the entire response as a query
+        sqlQuery = sqlAgentResponse.text.trim();
+      }
+
+      if (!sqlQuery) {
+        return {
+          text: JSON.stringify(
+            {
+              error: "No SQL query found in agent response",
+              agent_response: sqlAgentResponse.text,
+              execution_result: null,
+            },
+            null,
+            2,
+          ),
+        };
+      }
+
+      // Execute the SQL query
+      const executionResult = await this.executeSQLQuery(sqlQuery);
+
+      // Combine agent response with execution results
+      const combinedResult = {
+        agent_analysis: agentData || { raw_response: sqlAgentResponse.text },
+        sql_execution: executionResult,
+        timestamp: new Date().toISOString(),
+      };
+
+      return {
+        text: JSON.stringify(combinedResult, null, 2),
+      };
+    } catch (error) {
+      console.error("❌ SQL agent processing error:", error);
+      return {
+        text: JSON.stringify(
+          {
+            error: `SQL processing failed: ${error}`,
+            sql_query: null,
+            execution_result: null,
+          },
+          null,
+          2,
+        ),
+      };
+    }
   }
 
   // UPDATED: processQuery now takes clientDetail parameter
@@ -134,7 +261,9 @@ export class MultiAgentChatbot {
     } catch (error) {
       console.error("Error processing query:", error);
       return this.createErrorResponse(
-        error instanceof Error ? error.message : "Unknown error occurred",
+        error instanceof Error
+          ? String(error)
+          : String("Unknown error occurred"),
       );
     }
   }
@@ -187,7 +316,9 @@ export class MultiAgentChatbot {
     } catch (error) {
       console.error("Error processing limited query:", error);
       return this.createErrorResponse(
-        error instanceof Error ? error.message : "Unknown error occurred",
+        error instanceof Error
+          ? String(error)
+          : String("Unknown error occurred"),
       );
     }
   }
@@ -236,9 +367,9 @@ export class MultiAgentChatbot {
     const promises: Promise<ProcessedAgentResult>[] = [];
 
     if (this.shouldProcessSqlQuery(classification)) {
-      console.log("🗄️ Processing SQL query...");
+      console.log("🗄️ Processing SQL query with database execution...");
       promises.push(
-        this.createAgentPromise("sql", classification.sql_query, userQuery),
+        this.createSQLAgentPromise(classification.sql_query, userQuery),
       );
     }
 
@@ -267,8 +398,29 @@ export class MultiAgentChatbot {
     );
   }
 
+  // NEW: Special promise creation for SQL agent with database execution
+  private async createSQLAgentPromise(
+    queryDetails: QueryDetails,
+    fallbackQuery: string,
+  ): Promise<ProcessedAgentResult> {
+    try {
+      const result = await this.processSQLAgent(
+        fallbackQuery,
+        queryDetails,
+      );
+      return { type: "sql", data: result };
+    } catch (error) {
+      return {
+        type: "sql",
+        error: error instanceof Error
+          ? String(error)
+          : String("Unknown error occurred"),
+      };
+    }
+  }
+
   private async createAgentPromise(
-    agentType: "sql" | "info",
+    agentType: "info",
     queryDetails: QueryDetails,
     fallbackQuery: string,
   ): Promise<ProcessedAgentResult> {
@@ -280,7 +432,9 @@ export class MultiAgentChatbot {
     } catch (error) {
       return {
         type: agentType,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error
+          ? String(error)
+          : String("Unknown error occurred"),
       };
     }
   }
@@ -344,7 +498,9 @@ export class MultiAgentChatbot {
     ];
 
     if (sqlResult?.text) {
-      sections.push(`SQL Agent Response:\n${sqlResult.text}`);
+      sections.push(
+        `SQL Agent Response (with database execution results):\n${sqlResult.text}`,
+      );
     }
 
     if (infoResult?.text) {
@@ -352,7 +508,7 @@ export class MultiAgentChatbot {
     }
 
     sections.push(
-      "Please respond as Naturo, combining this information into a cohesive, helpful response with your unique personality and coaching style. Make it engaging and valuable for the human.",
+      "Please respond as Naturo, combining this information into a cohesive, helpful response with your unique personality and coaching style. If there are database results, present them in a user-friendly way. Make it engaging and valuable for the human.",
     );
 
     return sections.join("\n\n");
@@ -378,6 +534,22 @@ export class MultiAgentChatbot {
     }
 
     return await agent(query);
+  }
+
+  // NEW: Test database connection
+  public async testDatabaseConnection(): Promise<boolean> {
+    try {
+      const isConnected = await regeneraDB.testConnection();
+      console.log(
+        `🗄️ Database connection test: ${
+          isConnected ? "✅ Success" : "❌ Failed"
+        }`,
+      );
+      return isConnected;
+    } catch (error) {
+      console.error("❌ Database connection test failed:", error);
+      return false;
+    }
   }
 }
 
@@ -420,6 +592,11 @@ export class ChatbotManager {
   ): Promise<AgentTextResponse> {
     return await this.chatbot.testAgent(component, query);
   }
+
+  // NEW: Test database connectivity
+  async testDatabase(): Promise<boolean> {
+    return await this.chatbot.testDatabaseConnection();
+  }
 }
 
 export interface ChatbotExample {
@@ -432,11 +609,22 @@ export async function exampleUsage(
   { apiKey, userMessage, clientDetail }: ChatbotExample,
 ): Promise<void> {
   const chatManager = new ChatbotManager(apiKey);
+
+  // Test database connection first
+  console.log("🧪 Testing database connection...");
+  const dbConnected = await chatManager.testDatabase();
+  if (!dbConnected) {
+    console.warn(
+      "⚠️ Database connection failed, SQL queries may not work properly",
+    );
+  }
+
   const response = await chatManager.handleUserMessage(
     userMessage,
     clientDetail,
   );
   console.log("Naturo says:", response);
+
   try {
     const coachTest = await chatManager.testComponent("coach", userMessage);
     console.log("Coach classification:", coachTest.text);

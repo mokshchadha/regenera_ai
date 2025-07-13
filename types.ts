@@ -34,7 +34,7 @@ export interface AgentTextResponse {
 
 export interface ProcessedAgentResult {
   type: "sql" | "info";
-  data?: AgentTextResponse;
+  data?: AgentTextResponse | null;
   error?: string;
 }
 

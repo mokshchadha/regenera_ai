@@ -24,7 +24,7 @@ function App() {
     personNumber: "P123456",
     id: "demo-user",
     companyId: "REGENERA_EARTH",
-    userId: "demo-user"
+    userId: "demo-user",
   };
 
   const handleError = (error: string) => {
@@ -50,52 +50,34 @@ function App() {
   return (
     <>
       {/* Your existing app content */}
-      <div style={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-      }}>
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.9)',
-          borderRadius: '20px',
-          padding: '40px',
-          textAlign: 'center',
-          maxWidth: '600px',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <h1 style={{ color: '#2d3748', marginBottom: '20px' }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px",
+        }}
+      >
+        <div
+          style={{
+            background: "rgba(255, 255, 255, 0.9)",
+            borderRadius: "20px",
+            padding: "40px",
+            textAlign: "center",
+            maxWidth: "600px",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <h1 style={{ color: "#2d3748", marginBottom: "20px" }}>
             🌿 Regenera Earth
           </h1>
-          <p style={{ color: '#4a5568', fontSize: '1.1rem', lineHeight: 1.6 }}>
-            Welcome to Regenera Earth! This is your main application. 
-            The floating chat button in the bottom-right corner will let you 
-            chat with Naturo, our AI assistant, anytime you need help.
+          <p style={{ color: "#4a5568", fontSize: "1.1rem", lineHeight: 1.6 }}>
+            Welcome to Regenera Earth! This is your main application. The
+            floating chat button in the bottom-right corner will let you chat
+            with Naturo, our AI assistant, anytime you need help.
           </p>
-          <div style={{ 
-            marginTop: '30px', 
-            padding: '20px', 
-            background: 'rgba(102, 126, 234, 0.1)',
-            borderRadius: '12px',
-            border: '1px solid rgba(102, 126, 234, 0.2)'
-          }}>
-            <h3 style={{ color: '#667eea', margin: '0 0 10px 0' }}>
-              💡 Try asking Naturo:
-            </h3>
-            <ul style={{ 
-              textAlign: 'left', 
-              color: '#4a5568',
-              margin: 0,
-              paddingLeft: '20px'
-            }}>
-              <li>"What is machine learning?"</li>
-              <li>"Show me my recent activities"</li>
-              <li>"How can I improve my productivity?"</li>
-              <li>"Explain quantum computing"</li>
-            </ul>
-          </div>
         </div>
       </div>
 

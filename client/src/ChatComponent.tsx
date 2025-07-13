@@ -101,10 +101,10 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
       "credits exhausted",
       "come back later",
       "used your ai credits",
-      "credits are exhausted"
+      "credits are exhausted",
     ];
-    
-    return exhaustedKeywords.some(keyword => 
+
+    return exhaustedKeywords.some((keyword) =>
       content.toLowerCase().includes(keyword.toLowerCase())
     );
   };
@@ -203,7 +203,7 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
 
       // NEW: Check if response indicates credits exhausted
       const isExhausted = isCreditsExhaustedMessage(response.message.content);
-      
+
       // NEW: Update message count from response context
       if (response.context?.messageCount !== undefined) {
         setMessageCount(response.context.messageCount);
@@ -296,11 +296,12 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
           <h3>Chat with Naturo 🐸</h3>
           {/* NEW: Display message count and credits status */}
           <div className="message-counter">
-            <span className={`credits-info ${creditsExhausted ? 'exhausted' : ''}`}>
-              {creditsExhausted 
-                ? "🚫 Credits Exhausted" 
-                : `💬 ${messageCount}/10 messages`
-              }
+            <span
+              className={`credits-info ${creditsExhausted ? "exhausted" : ""}`}
+            >
+              {creditsExhausted
+                ? "🚫 Credits Exhausted"
+                : `💬 ${messageCount}/10 messages`}
             </span>
           </div>
         </div>
@@ -321,12 +322,10 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
             key={message.id}
             className={`message ${message.role} ${
               message.role === "system" ? "error" : ""
-            } ${
-              message.isCreditsExhausted ? "credits-exhausted" : ""
-            }`} // NEW: Add credits-exhausted class
+            } ${message.isCreditsExhausted ? "credits-exhausted" : ""}`} // NEW: Add credits-exhausted class
           >
             <div className="message-content">
-              <div 
+              <div
                 className={`message-text ${
                   message.isCreditsExhausted ? "credits-exhausted-text" : ""
                 }`} // NEW: Special styling for credits exhausted text
@@ -371,10 +370,13 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
         {/* NEW: Show credits exhausted warning */}
         {creditsExhausted && (
           <div className="credits-warning">
-            <span>🚫 You have reached your message limit. Please start a new session to continue.</span>
+            <span>
+              🚫 You have reached your message limit. Please start a new session
+              to continue.
+            </span>
           </div>
         )}
-        
+
         <div className="chat-input-wrapper">
           <input
             ref={inputRef}
@@ -382,7 +384,9 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={creditsExhausted ? "Credits exhausted..." : placeholder} // NEW: Update placeholder when exhausted
+            placeholder={creditsExhausted
+              ? "Credits exhausted..."
+              : placeholder} // NEW: Update placeholder when exhausted
             disabled={isLoading || creditsExhausted} // NEW: Disable input when exhausted
             className="chat-input"
           />

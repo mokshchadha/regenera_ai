@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ChatComponent from "./ChatComponent";
 import "./FloatingChatBot.css";
 
@@ -49,18 +49,18 @@ const FloatingChatBot: React.FC<FloatingChatBotProps> = ({
       if (chatRef.current && !chatRef.current.contains(event.target as Node)) {
         // Don't close if clicking on the floating button
         const target = event.target as HTMLElement;
-        if (!target.closest('.floating-chat-button')) {
+        if (!target.closest(".floating-chat-button")) {
           setIsOpen(false);
         }
       }
     };
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen]);
 
@@ -72,7 +72,7 @@ const FloatingChatBot: React.FC<FloatingChatBotProps> = ({
   };
 
   const handleMessageSent = (message: string) => {
-    setMessageCount(prev => prev + 1);
+    setMessageCount((prev) => prev + 1);
     onMessageSent?.(message);
   };
 
@@ -80,11 +80,11 @@ const FloatingChatBot: React.FC<FloatingChatBotProps> = ({
     if (!isOpen) {
       setHasNewMessage(true);
     }
-    
+
     if (message.isCreditsExhausted) {
       setCreditsExhausted(true);
     }
-    
+
     onMessageReceived?.(message);
   };
 
@@ -121,7 +121,7 @@ const FloatingChatBot: React.FC<FloatingChatBotProps> = ({
             </div>
             <div className="header-actions">
               {creditsExhausted && (
-                <button 
+                <button
                   className="new-session-btn"
                   onClick={handleNewSession}
                   title="Start new session"
@@ -129,7 +129,7 @@ const FloatingChatBot: React.FC<FloatingChatBotProps> = ({
                   🔄
                 </button>
               )}
-              <button 
+              <button
                 className="close-btn"
                 onClick={() => setIsOpen(false)}
                 title="Close chat"
@@ -138,13 +138,15 @@ const FloatingChatBot: React.FC<FloatingChatBotProps> = ({
               </button>
             </div>
           </div>
-          
+
           <div className="chat-content-floating">
             <ChatComponent
               serverUrl={serverUrl}
               userId={userId}
               clientDetail={clientDetail}
-              placeholder={creditsExhausted ? "Credits exhausted..." : "Type a message..."}
+              placeholder={creditsExhausted
+                ? "Credits exhausted..."
+                : "Type a message..."}
               welcomeMessage="🐸 Hey there! I'm Naturo. Life on earth is complicated, but I'm here to help you make the best of it. What's on your mind?"
               onError={handleError}
               onMessageSent={handleMessageSent}
@@ -156,39 +158,46 @@ const FloatingChatBot: React.FC<FloatingChatBotProps> = ({
 
           {/* Credits Status Bar */}
           <div className="credits-status-bar">
-            {creditsExhausted ? (
-              <span className="credits-exhausted">
-                🚫 Credits exhausted
-              </span>
-            ) : (
-              <span className="credits-remaining">
-                💬 {messageCount}/10 messages used
-              </span>
-            )}
+            {creditsExhausted
+              ? (
+                <span className="credits-exhausted">
+                  🚫 Credits exhausted
+                </span>
+              )
+              : (
+                <span className="credits-remaining">
+                  💬 {messageCount}/10 messages used
+                </span>
+              )}
           </div>
         </div>
       )}
 
       {/* Floating Button */}
       <button
-        className={`floating-chat-button ${creditsExhausted ? 'exhausted' : ''} ${isOpen ? 'open' : ''}`}
+        className={`floating-chat-button ${
+          creditsExhausted ? "exhausted" : ""
+        } ${isOpen ? "open" : ""}`}
         onClick={handleToggleChat}
         title={creditsExhausted ? "Chat credits exhausted" : "Chat with Naturo"}
       >
-        {isOpen ? (
-          <span className="close-icon">✕</span>
-        ) : creditsExhausted ? (
-          <span className="exhausted-icon">🚫</span>
-        ) : (
-          <span className="chat-icon">💬</span>
-        )}
-        
+        {isOpen
+          ? <span className="close-icon">✕</span>
+          : creditsExhausted
+          ? <span className="exhausted-icon">🚫</span>
+          : <span className="chat-icon">💬</span>}
+
         {/* Notification Badge */}
-        {!isOpen && (hasNewMessage || messageCount > 0) && !creditsExhausted && (
-          <div className={`notification-badge ${hasNewMessage ? 'new-message' : ''}`}>
-            {hasNewMessage ? '!' : messageCount}
-          </div>
-        )}
+        {!isOpen && (hasNewMessage || messageCount > 0) && !creditsExhausted &&
+          (
+            <div
+              className={`notification-badge ${
+                hasNewMessage ? "new-message" : ""
+              }`}
+            >
+              {hasNewMessage ? "!" : messageCount}
+            </div>
+          )}
       </button>
     </div>
   );
