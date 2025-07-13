@@ -41,6 +41,46 @@ interface ChatResponse {
   };
 }
 
+// NEW: Function to parse markdown-style formatting
+const parseMessageContent = (content: string): string => {
+  // First, escape any existing HTML to prevent XSS
+  const escapeHtml = (text: string): string => {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  };
+
+  // Escape HTML first
+  let parsedContent = escapeHtml(content);
+
+  // Parse bold text: **text** or *text*
+  parsedContent = parsedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  parsedContent = parsedContent.replace(/(?<!\*)\*(?!\*)([^\*]+?)\*(?!\*)/g, '<strong>$1</strong>');
+
+  // Parse italic text: _text_
+  parsedContent = parsedContent.replace(/_(.*?)_/g, '<em>$1</em>');
+
+  // Preserve line breaks
+  parsedContent = parsedContent.replace(/\n/g, '<br>');
+
+  return parsedContent;
+};
+
+// NEW: Component to render formatted message content
+const FormattedMessageContent: React.FC<{ content: string }> = ({ content }) => {
+  const formattedContent = parseMessageContent(content);
+  
+  return (
+    <div
+      dangerouslySetInnerHTML={{ __html: formattedContent }}
+      style={{
+        wordBreak: 'break-word',
+        whiteSpace: 'pre-wrap'
+      }}
+    />
+  );
+};
+
 export const ChatComponent: React.FC<ChatComponentProps> = ({
   serverUrl = "http://localhost:8000",
   userId,
@@ -330,7 +370,8 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
                   message.isCreditsExhausted ? "credits-exhausted-text" : ""
                 }`} // NEW: Special styling for credits exhausted text
               >
-                {message.content}
+                {/* NEW: Use FormattedMessageContent for rich text formatting */}
+                <FormattedMessageContent content={message.content} />
               </div>
               <div className="message-time">
                 {formatTime(message.timestamp)}
