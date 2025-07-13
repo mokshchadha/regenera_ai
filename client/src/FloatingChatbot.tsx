@@ -30,7 +30,7 @@ interface FloatingChatBotProps {
 
 const FloatingChatBot: React.FC<FloatingChatBotProps> = ({
   serverUrl = "http://localhost:8000",
-  userId = "demo-user",
+  userId = 252,
   clientDetail,
   onError,
   onMessageSent,

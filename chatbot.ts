@@ -125,18 +125,23 @@ export class MultiAgentChatbot {
     }
   }
 
-  // UPDATED: Enhanced SQL agent processing with database execution
+  // UPDATED: Enhanced SQL agent processing with client context and database execution
   private async processSQLAgent(
     userQuery: string,
     queryDetails: QueryDetails,
+    clientDetail?: ClientDetail, // NEW: Accept client detail parameter
   ): Promise<AgentTextResponse | null> {
     try {
       console.log("🗄️ Processing SQL query with database execution...");
 
-      // Get SQL query from the agent
-      const sqlAgentResponse = await this.agents.sql(
+      // NEW: Build context-aware prompt with client information
+      const contextualPrompt = this.buildSQLPromptWithContext(
         queryDetails.extracted_intent || userQuery,
+        clientDetail,
       );
+
+      // Get SQL query from the agent with contextual information
+      const sqlAgentResponse = await this.agents.sql(contextualPrompt);
 
       if (!sqlAgentResponse?.text) {
         return {
@@ -159,12 +164,42 @@ export class MultiAgentChatbot {
       let agentData: any = null;
 
       try {
-        // Try to parse as JSON first
-        agentData = JSON.parse(sqlAgentResponse.text);
+        // First, clean up the response by removing markdown code blocks
+        let cleanedResponse = sqlAgentResponse.text.trim();
+
+        // Remove markdown code blocks if present
+        cleanedResponse = cleanedResponse.replace(/```json\n?/g, "").replace(
+          /```\n?/g,
+          "",
+        );
+
+        // Try to parse as JSON
+        agentData = JSON.parse(cleanedResponse);
         sqlQuery = agentData.sql_query;
-      } catch {
-        // If not JSON, treat the entire response as a query
-        sqlQuery = sqlAgentResponse.text.trim();
+
+        // NEW: Replace parameter placeholders with actual client values
+        if (sqlQuery && clientDetail) {
+          sqlQuery = this.replaceQueryParameters(sqlQuery, clientDetail);
+        }
+      } catch (parseError) {
+        console.error(
+          "Failed to parse SQL agent response as JSON:",
+          parseError,
+        );
+
+        // If JSON parsing fails, try to extract SQL from the raw text
+        const sqlMatch = sqlAgentResponse.text.match(/SELECT[\s\S]*?(?=;|$)/i);
+        if (sqlMatch) {
+          sqlQuery = sqlMatch[0].trim();
+
+          // Replace parameter placeholders with client values
+          if (clientDetail) {
+            sqlQuery = this.replaceQueryParameters(
+              String(sqlQuery),
+              clientDetail,
+            );
+          }
+        }
       }
 
       if (!sqlQuery) {
@@ -181,6 +216,8 @@ export class MultiAgentChatbot {
         };
       }
 
+      console.log("🔍 Extracted SQL Query:", sqlQuery);
+
       // Execute the SQL query
       const executionResult = await this.executeSQLQuery(sqlQuery);
 
@@ -188,6 +225,13 @@ export class MultiAgentChatbot {
       const combinedResult = {
         agent_analysis: agentData || { raw_response: sqlAgentResponse.text },
         sql_execution: executionResult,
+        client_context: clientDetail
+          ? {
+            userId: clientDetail.userId,
+            organizationId: clientDetail.id,
+            companyId: clientDetail.companyId,
+          }
+          : null,
         timestamp: new Date().toISOString(),
       };
 
@@ -210,7 +254,97 @@ export class MultiAgentChatbot {
     }
   }
 
-  // UPDATED: processQuery now takes clientDetail parameter
+  // NEW: Build SQL prompt with client context
+  private buildSQLPromptWithContext(
+    userQuery: string,
+    clientDetail?: ClientDetail,
+  ): string {
+    const basePrompt = `User Query: "${userQuery}"`;
+
+    if (!clientDetail) {
+      return `${basePrompt}\n\nNote: No client context available. Generate a general query structure with parameter placeholders.`;
+    }
+
+    const contextInfo = [];
+
+    if (clientDetail.userId) {
+      contextInfo.push(`User ID: ${clientDetail.userId}`);
+    }
+
+    if (clientDetail.id) {
+      contextInfo.push(`Organization ID: ${clientDetail.id}`);
+    }
+
+    if (clientDetail.companyId) {
+      contextInfo.push(`Company ID: ${clientDetail.companyId}`);
+    }
+
+    if (clientDetail.personNumber) {
+      contextInfo.push(`Person Number: ${clientDetail.personNumber}`);
+    }
+
+    const contextualPrompt = `
+${basePrompt}
+
+Client Context:
+${contextInfo.join("\n")}
+
+Instructions:
+1. Use the provided client context to generate personalized queries
+2. When querying user-specific data, use the User ID: ${
+      clientDetail.userId || "N/A"
+    }
+3. When querying organization data, filter by organization ID: ${
+      clientDetail.id || "N/A"
+    }
+4. Always include appropriate WHERE clauses to filter data for this specific client
+5. Replace parameter placeholders with actual values from the client context
+6. Ensure data security by only returning data accessible to this client
+
+Generate a SQL query that answers the user's question using their specific context.
+  `.trim();
+
+    return contextualPrompt;
+  }
+
+  // NEW: Replace query parameters with actual client values
+  private replaceQueryParameters(
+    sqlQuery: string,
+    clientDetail: ClientDetail,
+  ): string {
+    let updatedQuery = sqlQuery;
+
+    // Replace common parameter patterns with actual values
+    if (clientDetail.userId) {
+      updatedQuery = updatedQuery
+        .replace(/\$1/g, `'${clientDetail.userId}'`)
+        .replace(/\?/g, `'${clientDetail.userId}'`)
+        .replace(/:userId/g, `'${clientDetail.userId}'`)
+        .replace(/\$userId/g, `'${clientDetail.userId}'`);
+    }
+
+    if (clientDetail.id) {
+      updatedQuery = updatedQuery
+        .replace(/\$2/g, `'${clientDetail.id}'`)
+        .replace(/:organizationId/g, `'${clientDetail.id}'`)
+        .replace(/\$organizationId/g, `'${clientDetail.id}'`);
+    }
+
+    if (clientDetail.companyId) {
+      updatedQuery = updatedQuery
+        .replace(/:companyId/g, `'${clientDetail.companyId}'`)
+        .replace(/\$companyId/g, `'${clientDetail.companyId}'`);
+    }
+
+    if (clientDetail.personNumber) {
+      updatedQuery = updatedQuery
+        .replace(/:personNumber/g, `'${clientDetail.personNumber}'`)
+        .replace(/\$personNumber/g, `'${clientDetail.personNumber}'`);
+    }
+
+    return updatedQuery;
+  }
+
   public async processQuery(
     userQuery: string,
     clientDetail?: ClientDetail,
@@ -226,6 +360,12 @@ export class MultiAgentChatbot {
       }
 
       console.log("✅ Valid client detail found - using all agents");
+      console.log("👤 Client context:", {
+        userId: clientDetail?.userId,
+        organizationId: clientDetail?.id,
+        companyId: clientDetail?.companyId,
+        personNumber: clientDetail?.personNumber,
+      });
 
       const classification = await this.classifyQuery(userQuery);
       if (!classification) {
@@ -237,6 +377,7 @@ export class MultiAgentChatbot {
       const [sqlResult, infoResult] = await this.processAgentQueries(
         userQuery,
         classification,
+        clientDetail, // NEW: Pass client detail to agent processing
       );
 
       this.logResults(sqlResult, infoResult);
@@ -363,13 +504,18 @@ export class MultiAgentChatbot {
   private async processAgentQueries(
     userQuery: string,
     classification: QueryClassification,
+    clientDetail?: ClientDetail, // NEW: Accept client detail parameter
   ): Promise<[AgentTextResponse | null, AgentTextResponse | null]> {
     const promises: Promise<ProcessedAgentResult>[] = [];
 
     if (this.shouldProcessSqlQuery(classification)) {
       console.log("🗄️ Processing SQL query with database execution...");
       promises.push(
-        this.createSQLAgentPromise(classification.sql_query, userQuery),
+        this.createSQLAgentPromise(
+          classification.sql_query,
+          userQuery,
+          clientDetail, // NEW: Pass client detail
+        ),
       );
     }
 
@@ -402,11 +548,13 @@ export class MultiAgentChatbot {
   private async createSQLAgentPromise(
     queryDetails: QueryDetails,
     fallbackQuery: string,
+    clientDetail?: ClientDetail, // NEW: Accept client detail
   ): Promise<ProcessedAgentResult> {
     try {
       const result = await this.processSQLAgent(
         fallbackQuery,
         queryDetails,
+        clientDetail, // NEW: Pass client detail to processSQLAgent
       );
       return { type: "sql", data: result };
     } catch (error) {

@@ -27,9 +27,9 @@ const ChatExample: React.FC = () => {
   // NEW: Example client detail - in real app, this would come from your auth/user context
   const clientDetail: ClientDetail = {
     personNumber: "P123456",
-    id: "demo-user",
+    id: 252,
     companyId: "REGENERA_EARTH",
-    userId: "demo-user",
+    userId: 252,
   };
 
   const handleError = (error: string) => {
@@ -97,7 +97,7 @@ const ChatExample: React.FC = () => {
               <div className="chat-wrapper">
                 <ChatComponent
                   serverUrl="http://localhost:8000"
-                  userId="demo-user"
+                  userId={252}
                   clientDetail={clientDetail} // NEW: Pass client detail
                   placeholder="Ask Naturo anything..."
                   welcomeMessage="🐸 Hey there! I'm Naturo. Life on earth is complicated, but I'm here to help you make the best of it. What's on your mind?"

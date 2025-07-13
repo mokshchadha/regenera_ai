@@ -182,9 +182,9 @@ export class PostgreSQLExecutor {
 
 // Create a singleton instance with the Regenera database configuration
 export const regeneraDB = new PostgreSQLExecutor({
-  host: Deno.env.get("DB_HOST")|| '',
-  port: parseInt(Deno.env.get("DB_PORT") || '5432'),
-  database:  Deno.env.get("DB_NAME")|| '',
+  host: Deno.env.get("DB_HOST") || "",
+  port: parseInt(Deno.env.get("DB_PORT") || "5432"),
+  database: Deno.env.get("DB_NAME") || "",
   user: "regenera",
-  password: Deno.env.get("DB_PASSWORD")|| '',
+  password: Deno.env.get("DB_PASSWORD") || "",
 });

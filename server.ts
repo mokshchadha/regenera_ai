@@ -168,7 +168,7 @@ router.get("/database/status", async (ctx: RouterContext<string>) => {
       connected: connectionTest,
       host: Deno.env.get("DB_HOST"),
       port: Deno.env.get("DB_PORT"),
-      database:Deno.env.get("DB_NAME"),
+      database: Deno.env.get("DB_NAME"),
       timestamp: new Date(),
     };
   } catch (error) {
