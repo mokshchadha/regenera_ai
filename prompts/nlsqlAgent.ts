@@ -121,25 +121,87 @@ CREATE TABLE landscape_subscription (
     FOREIGN KEY ("organizationId") REFERENCES organization(id)
 );
 
+-- Account table
+CREATE TABLE account (
+    id SERIAL PRIMARY KEY,
+    createdAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    firstName VARCHAR(255),
+    lastName VARCHAR(255),
+    displayName VARCHAR(255),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phoneNumber VARCHAR(20),
+    password VARCHAR(255) NOT NULL,
+    emailVerified BOOLEAN DEFAULT FALSE,
+    pendingEmail VARCHAR(255),
+    profilePicture TEXT,
+    isActive BOOLEAN DEFAULT TRUE,
+    referer VARCHAR(255)
+);
+
+-- Landscape table
+CREATE TABLE landscape (
+    id SERIAL PRIMARY KEY,
+    createdAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    name VARCHAR(255) NOT NULL,
+    metadata JSONB,
+    image TEXT,
+    description TEXT,
+    isActive BOOLEAN DEFAULT TRUE,
+    slug VARCHAR(255) UNIQUE,
+    userId INTEGER REFERENCES account(id) ON DELETE CASCADE,
+    titleSlug VARCHAR(255),
+    sliderImage TEXT,
+    region VARCHAR(255)
+);
+
+-- Landscape_plan table
+CREATE TABLE landscape_plan (
+    id SERIAL PRIMARY KEY,
+    createdAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    planId INTEGER NOT NULL,
+    planType VARCHAR(100),
+    productId INTEGER,
+    productName VARCHAR(255),
+    landscapeId INTEGER REFERENCES landscape(id) ON DELETE CASCADE,
+    isActive BOOLEAN DEFAULT TRUE,
+    amount DECIMAL(10, 2),
+    currency VARCHAR(3) DEFAULT 'USD',
+    interval VARCHAR(50),
+    intervalCount INTEGER DEFAULT 1
+);
+
+
+
 -- Summary Metrics table
 CREATE TABLE summary_metrics (
-    id INTEGER PRIMARY KEY,
+    id BIGINT PRIMARY KEY,
+    createdAt TIMESTAMP,
+    updatedAt TIMESTAMP,
+    date DATE,
+    quarter VARCHAR(10),
+    year INTEGER,
+    source_of_information VARCHAR(255),
     partner VARCHAR(255),
-    landscape VARCHAR(255),
-    "impactMetrics" JSON,
-    "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    category VARCHAR(255),
+    sub_category VARCHAR(255),
+    invested_in_nature DECIMAL(15,2),
+    total_emission_till_now DECIMAL(15,2),
+    compensated DECIMAL(15,2),
+    net_impact DECIMAL(15,2),
+    hectares_protected DECIMAL(15,2),
+    soccer_fields DECIMAL(15,2),
+    soccer_fields_by_plan DECIMAL(15,2),
+    plan VARCHAR(255),
+    hectare_protected_by_plan DECIMAL(15,2),
+    hectares_protected_in_total DECIMAL(15,2),
+    type_of_partner VARCHAR(255),
+    landscape_id VARCHAR(255),
+    partner_id VARCHAR(255)
 );
-
--- Payout Transactions table  
-CREATE TABLE payout_transactions (
-    id INTEGER PRIMARY KEY,
-    "subscriptionId" INTEGER,
-    amount DECIMAL(15,2),
-    "transactionDate" DATE,
-    status VARCHAR(50),
-    FOREIGN KEY ("subscriptionId") REFERENCES landscape_subscription(id)
-);
-
+ 
 ## Query Construction Guidelines
 
 ### Security & Access Control
@@ -168,18 +230,18 @@ JOIN organization o ON o.id = ou."organizationId"
 WHERE u.id = 'user_id_from_context'
 LIMIT 1;
 
-### 2. Organization's Landscape Subscriptions
-SELECT o."organizationName", ls.*, l.name as "landscapeName"
-FROM organization o
-JOIN landscape_subscription ls ON ls."organizationId" = o.id
-WHERE o.id = 'org_id_from_context'
-LIMIT 10;
+### 2. User's Landscape Subscriptions information
+select ls.status , lp."productName" , l.id, l."userId", a."firstName" from landscape_plan lp
+join landscape_subscription ls on ls.id = lp.id
+join landscape l on l.id = "landscapeId" 
+join users u on u.id = l."userId"
+join account a on a.id = u.id
+where u.id="user_id_from_context";
 
-### 3. Organization's Impact Metrics
-SELECT sm.partner, sm.landscape, sm."impactMetrics"
-FROM summary_metrics sm
-WHERE sm.partner = 'organization_name_from_context'
-LIMIT 10;
+
+### 3. Users's or Organizations Impact Metrics
+select * from summary_metrics sm  join landscape l  on sm.landscape_id = l.id join users u on l."userId" = u.id
+where u.id="user_id_from_context";
 
 ### 4. Organization's Emission Activities
 SELECT oea."inventoryYear", oea."totalEmission", oea.status
