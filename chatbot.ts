@@ -84,7 +84,6 @@ export class MultiAgentChatbot {
     );
   }
 
-  // NEW: Execute SQL query and format results
   private async executeSQLQuery(sqlQuery: string): Promise<{
     success: boolean;
     data?: string;
@@ -125,22 +124,18 @@ export class MultiAgentChatbot {
     }
   }
 
-  // UPDATED: Enhanced SQL agent processing with client context and database execution
   private async processSQLAgent(
     userQuery: string,
     queryDetails: QueryDetails,
-    clientDetail?: ClientDetail, // NEW: Accept client detail parameter
+    clientDetail?: ClientDetail,
   ): Promise<AgentTextResponse | null> {
     try {
       console.log("🗄️ Processing SQL query with database execution...");
 
-      // NEW: Build context-aware prompt with client information
       const contextualPrompt = this.buildSQLPromptWithContext(
         queryDetails.extracted_intent || userQuery,
         clientDetail,
       );
-
-      // Get SQL query from the agent with contextual information
       const sqlAgentResponse = await this.agents.sql(contextualPrompt);
 
       if (!sqlAgentResponse?.text) {
@@ -158,26 +153,19 @@ export class MultiAgentChatbot {
       }
 
       console.log("🔍 SQL Agent response:", sqlAgentResponse.text);
-
-      // Try to parse the SQL query from the agent response
       let sqlQuery: string | null = null;
       let agentData: any = null;
 
       try {
-        // First, clean up the response by removing markdown code blocks
         let cleanedResponse = sqlAgentResponse.text.trim();
-
-        // Remove markdown code blocks if present
         cleanedResponse = cleanedResponse.replace(/```json\n?/g, "").replace(
           /```\n?/g,
           "",
         );
 
-        // Try to parse as JSON
         agentData = JSON.parse(cleanedResponse);
         sqlQuery = agentData.sql_query;
 
-        // NEW: Replace parameter placeholders with actual client values
         if (sqlQuery && clientDetail) {
           sqlQuery = this.replaceQueryParameters(sqlQuery, clientDetail);
         }
@@ -187,12 +175,10 @@ export class MultiAgentChatbot {
           parseError,
         );
 
-        // If JSON parsing fails, try to extract SQL from the raw text
         const sqlMatch = sqlAgentResponse.text.match(/SELECT[\s\S]*?(?=;|$)/i);
         if (sqlMatch) {
           sqlQuery = sqlMatch[0].trim();
 
-          // Replace parameter placeholders with client values
           if (clientDetail) {
             sqlQuery = this.replaceQueryParameters(
               String(sqlQuery),
@@ -254,7 +240,6 @@ export class MultiAgentChatbot {
     }
   }
 
-  // NEW: Build SQL prompt with client context
   private buildSQLPromptWithContext(
     userQuery: string,
     clientDetail?: ClientDetail,
@@ -307,14 +292,12 @@ Generate a SQL query that answers the user's question using their specific conte
     return contextualPrompt;
   }
 
-  // NEW: Replace query parameters with actual client values
   private replaceQueryParameters(
     sqlQuery: string,
     clientDetail: ClientDetail,
   ): string {
     let updatedQuery = sqlQuery;
 
-    // Replace common parameter patterns with actual values
     if (clientDetail.userId) {
       updatedQuery = updatedQuery
         .replace(/\$1/g, `'${clientDetail.userId}'`)
@@ -377,7 +360,7 @@ Generate a SQL query that answers the user's question using their specific conte
       const [sqlResult, infoResult] = await this.processAgentQueries(
         userQuery,
         classification,
-        clientDetail, // NEW: Pass client detail to agent processing
+        clientDetail,
       );
 
       this.logResults(sqlResult, infoResult);
@@ -409,14 +392,11 @@ Generate a SQL query that answers the user's question using their specific conte
     }
   }
 
-  // NEW: Process query with limited agents (only info and naturo)
   private async processLimitedQuery(
     userQuery: string,
   ): Promise<AgentResponse<MergedResponseData>> {
     try {
       console.log("📚 Processing info query only...");
-
-      // Only use info agent
       const infoResult = await this.agents.info(userQuery);
 
       console.log(
@@ -424,7 +404,6 @@ Generate a SQL query that answers the user's question using their specific conte
         infoResult?.text ? "✅ Success" : "❌ None",
       );
 
-      // Create a simplified classification for limited mode
       const limitedClassification: QueryClassification = {
         classification: "info",
         sql_query: {
@@ -464,7 +443,6 @@ Generate a SQL query that answers the user's question using their specific conte
     }
   }
 
-  // NEW: Build merge input for limited mode (no SQL data)
   private buildLimitedMergeInput(
     originalQuery: string,
     infoResult: AgentTextResponse | null,
@@ -504,7 +482,7 @@ Generate a SQL query that answers the user's question using their specific conte
   private async processAgentQueries(
     userQuery: string,
     classification: QueryClassification,
-    clientDetail?: ClientDetail, // NEW: Accept client detail parameter
+    clientDetail?: ClientDetail, 
   ): Promise<[AgentTextResponse | null, AgentTextResponse | null]> {
     const promises: Promise<ProcessedAgentResult>[] = [];
 
@@ -514,7 +492,7 @@ Generate a SQL query that answers the user's question using their specific conte
         this.createSQLAgentPromise(
           classification.sql_query,
           userQuery,
-          clientDetail, // NEW: Pass client detail
+          clientDetail,  
         ),
       );
     }
@@ -544,17 +522,16 @@ Generate a SQL query that answers the user's question using their specific conte
     );
   }
 
-  // NEW: Special promise creation for SQL agent with database execution
   private async createSQLAgentPromise(
     queryDetails: QueryDetails,
     fallbackQuery: string,
-    clientDetail?: ClientDetail, // NEW: Accept client detail
+    clientDetail?: ClientDetail, 
   ): Promise<ProcessedAgentResult> {
     try {
       const result = await this.processSQLAgent(
         fallbackQuery,
         queryDetails,
-        clientDetail, // NEW: Pass client detail to processSQLAgent
+        clientDetail,
       );
       return { type: "sql", data: result };
     } catch (error) {
@@ -684,7 +661,6 @@ Generate a SQL query that answers the user's question using their specific conte
     return await agent(query);
   }
 
-  // NEW: Test database connection
   public async testDatabaseConnection(): Promise<boolean> {
     try {
       const isConnected = await regeneraDB.testConnection();
@@ -741,7 +717,6 @@ export class ChatbotManager {
     return await this.chatbot.testAgent(component, query);
   }
 
-  // NEW: Test database connectivity
   async testDatabase(): Promise<boolean> {
     return await this.chatbot.testDatabaseConnection();
   }
