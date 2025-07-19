@@ -21,7 +21,6 @@ const sessions = new Map<string, ChatSession>(); // im creating this with the as
 const PORT = parseInt(Deno.env.get("PORT") || "8000");
 const API_KEY = Deno.env.get("GOOGLE_AI_API_KEY");
 
-// NEW: Constants for message limits
 const MAX_MESSAGES_PER_SESSION = 10;
 const AI_CREDITS_EXHAUSTED_MESSAGE =
   "You have used your AI credits, please come back later.";
@@ -135,7 +134,6 @@ app.use(async (ctx: Context, next: Next) => {
   }
 });
 
-// UPDATED: Health endpoint with database status
 router.get("/health", (ctx: RouterContext<string>) => {
   ctx.response.body = {
     status: "ok",
@@ -153,7 +151,6 @@ router.get("/health", (ctx: RouterContext<string>) => {
   };
 });
 
-// NEW: Database status endpoint
 router.get("/database/status", async (ctx: RouterContext<string>) => {
   try {
     const connectionTest = await regeneraDB.testConnection();
@@ -176,7 +173,6 @@ router.get("/database/status", async (ctx: RouterContext<string>) => {
   }
 });
 
-// NEW: Database schema endpoint
 router.get("/database/schema", async (ctx: RouterContext<string>) => {
   if (!isDatabaseConnected) {
     ctx.response.status = 503;
@@ -188,7 +184,6 @@ router.get("/database/schema", async (ctx: RouterContext<string>) => {
     const tableInfo = await regeneraDB.getTableInfo();
 
     if (tableInfo.success) {
-      // Group columns by table
       const schema: Record<string, any[]> = {};
       tableInfo.data?.forEach((row: any) => {
         if (!schema[row.table_name]) {
@@ -250,19 +245,18 @@ router.get("/sessions/:sessionId", (ctx: RouterContext<string>) => {
     return;
   }
 
-  // NEW: Include message count in response
   const userMessageCount = getUserMessageCount(session);
 
   ctx.response.body = {
     id: session.id,
     userId: session.userId,
     messageCount: session.messages.length,
-    userMessageCount: userMessageCount, // NEW: Track user messages specifically
-    maxMessages: MAX_MESSAGES_PER_SESSION, // NEW: Include limit info
-    creditsRemaining: Math.max(0, MAX_MESSAGES_PER_SESSION - userMessageCount), // NEW: Credits remaining
+    userMessageCount: userMessageCount,
+    maxMessages: MAX_MESSAGES_PER_SESSION,
+    creditsRemaining: Math.max(0, MAX_MESSAGES_PER_SESSION - userMessageCount),
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
-    databaseStatus: isDatabaseConnected ? "connected" : "disconnected", // NEW: Database status
+    databaseStatus: isDatabaseConnected ? "connected" : "disconnected", 
   };
 });
 
@@ -281,14 +275,14 @@ router.get("/sessions/:sessionId/messages", (ctx: RouterContext<string>) => {
   ctx.response.body = {
     sessionId: session.id,
     messages: session.messages,
-    userMessageCount: userMessageCount, // NEW: Include user message count
-    maxMessages: MAX_MESSAGES_PER_SESSION, // NEW: Include limit
-    creditsRemaining: Math.max(0, MAX_MESSAGES_PER_SESSION - userMessageCount), // NEW: Credits remaining
-    databaseStatus: isDatabaseConnected ? "connected" : "disconnected", // NEW: Database status
+    userMessageCount: userMessageCount, 
+    maxMessages: MAX_MESSAGES_PER_SESSION, 
+    creditsRemaining: Math.max(0, MAX_MESSAGES_PER_SESSION - userMessageCount), 
+    databaseStatus: isDatabaseConnected ? "connected" : "disconnected", 
   };
 });
 
-// UPDATED: Main chat endpoint with client detail handling and message limits
+// NOTE: Main chat endpoint with client detail handling and message limits
 router.post("/chat", async (ctx: RouterContext<string>) => {
   const body: ChatRequest = await ctx.request.body().value;
   const { sessionId, message, createNewSession, clientDetail } = body;
@@ -315,7 +309,7 @@ router.post("/chat", async (ctx: RouterContext<string>) => {
     }
   }
 
-  // NEW: Check if session has exceeded message limit BEFORE processing
+  
   if (hasExceededMessageLimit(session)) {
     console.log(`🚫 Session ${session.id} has exceeded message limit`);
 
@@ -326,7 +320,6 @@ router.post("/chat", async (ctx: RouterContext<string>) => {
       timestamp: new Date(),
     };
 
-    // Don't add user message to avoid further incrementing count
     updateSession(session.id, assistantMessage);
 
     const userMessageCount = getUserMessageCount(session);
@@ -353,7 +346,6 @@ router.post("/chat", async (ctx: RouterContext<string>) => {
   };
   updateSession(session.id, userMessage);
 
-  // NEW: Check if this message puts us at the limit
   const userMessageCount = getUserMessageCount(session);
   if (userMessageCount >= MAX_MESSAGES_PER_SESSION) {
     console.log(
@@ -383,7 +375,6 @@ router.post("/chat", async (ctx: RouterContext<string>) => {
   }
 
   try {
-    // NEW: Log client detail availability and database status
     if (clientDetail) {
       console.log(`✅ Client detail provided for session ${session.id}:`, {
         hasPersonNumber: !!clientDetail.personNumber,
@@ -412,7 +403,6 @@ router.post("/chat", async (ctx: RouterContext<string>) => {
       ? `${context}\nuser: ${message}`
       : message;
 
-    // NEW: Pass client detail to chatbot manager
     const response = await chatbotManager.handleUserMessage(
       contextualMessage,
       clientDetail,
@@ -434,7 +424,7 @@ router.post("/chat", async (ctx: RouterContext<string>) => {
       context: {
         totalMessages: session.messages.length,
         sessionCreated: session.createdAt,
-        messageCount: finalUserMessageCount, // NEW: Include current message count
+        messageCount: finalUserMessageCount,
       },
     };
 
@@ -463,11 +453,11 @@ router.get("/sessions", (ctx: RouterContext<string>) => {
       id: session.id,
       userId: session.userId,
       messageCount: session.messages.length,
-      userMessageCount: userMessageCount, // NEW: Include user message count
+      userMessageCount: userMessageCount,
       creditsRemaining: Math.max(
         0,
         MAX_MESSAGES_PER_SESSION - userMessageCount,
-      ), // NEW: Credits remaining
+      ),
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
     };
