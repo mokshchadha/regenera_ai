@@ -31,13 +31,12 @@ if (!API_KEY) {
   Deno.exit(1);
 }
 
-// Initialize chatbot manager
+
 const chatbotManager = new ChatbotManager(API_KEY);
 
-// NEW: Database status
+
 let isDatabaseConnected = false;
 
-// NEW: Function to initialize database
 async function initializeDatabase(): Promise<void> {
   console.log("🗄️ Initializing database connection...");
   try {
@@ -46,7 +45,6 @@ async function initializeDatabase(): Promise<void> {
     if (isDatabaseConnected) {
       console.log("✅ Database connection successful");
 
-      // Get basic schema info
       const tableInfo = await regeneraDB.getTableInfo();
       if (tableInfo.success && tableInfo.data) {
         const tables = [
@@ -68,18 +66,15 @@ async function initializeDatabase(): Promise<void> {
   }
 }
 
-// NEW: Function to count user messages in a session
 function getUserMessageCount(session: ChatSession): number {
   return session.messages.filter((msg) => msg.role === "user").length;
 }
 
-// NEW: Function to check if session has exceeded message limit
 function hasExceededMessageLimit(session: ChatSession): boolean {
   const userMessageCount = getUserMessageCount(session);
   return userMessageCount >= MAX_MESSAGES_PER_SESSION;
 }
 
-// Session management functions
 function createSession(userId?: string): ChatSession {
   const sessionId = crypto.randomUUID();
   const session: ChatSession = {

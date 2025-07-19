@@ -5,10 +5,9 @@ interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
-  isCreditsExhausted?: boolean; // NEW: Flag for credits exhausted messages
+  isCreditsExhausted?: boolean;
 }
 
-// NEW: Client detail interface
 interface ClientDetail {
   personNumber?: string;
   id?: string;
@@ -24,11 +23,11 @@ interface ChatComponentProps {
   welcomeMessage?: string;
   className?: string;
   style?: React.CSSProperties;
-  clientDetail?: ClientDetail; // NEW: Optional client detail
+  clientDetail?: ClientDetail;
   onError?: (error: string) => void;
   onMessageSent?: (message: string) => void;
   onMessageReceived?: (message: ChatMessage) => void;
-  onCreditsExhausted?: () => void; // NEW: Callback for credits exhausted
+  onCreditsExhausted?: () => void;
 }
 
 interface ChatResponse {
@@ -37,36 +36,32 @@ interface ChatResponse {
   context?: {
     totalMessages: number;
     sessionCreated: Date;
-    messageCount?: number; // NEW: Track message count
+    messageCount?: number;
   };
 }
 
-// NEW: Function to parse markdown-style formatting
 const parseMessageContent = (content: string): string => {
-  // First, escape any existing HTML to prevent XSS
   const escapeHtml = (text: string): string => {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   };
 
-  // Escape HTML first
+
   let parsedContent = escapeHtml(content);
 
-  // Parse bold text: **text** or *text*
   parsedContent = parsedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   parsedContent = parsedContent.replace(/(?<!\*)\*(?!\*)([^\*]+?)\*(?!\*)/g, '<strong>$1</strong>');
 
-  // Parse italic text: _text_
   parsedContent = parsedContent.replace(/_(.*?)_/g, '<em>$1</em>');
 
-  // Preserve line breaks
+
   parsedContent = parsedContent.replace(/\n/g, '<br>');
 
   return parsedContent;
 };
 
-// NEW: Component to render formatted message content
+
 const FormattedMessageContent: React.FC<{ content: string }> = ({ content }) => {
   const formattedContent = parseMessageContent(content);
   
@@ -89,23 +84,23 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
     "🐸 Hello! I'm Naturo, your digital assistant. How can I help you today?",
   className = "",
   style = {},
-  clientDetail, // NEW: Client detail prop
+  clientDetail,
   onError,
   onMessageSent,
   onMessageReceived,
-  onCreditsExhausted, // NEW: Credits exhausted callback
+  onCreditsExhausted, 
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [creditsExhausted, setCreditsExhausted] = useState(false); // NEW: Track credits state
-  const [messageCount, setMessageCount] = useState(0); // NEW: Track message count
+  const [creditsExhausted, setCreditsExhausted] = useState(false); 
+  const [messageCount, setMessageCount] = useState(0); 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -114,7 +109,7 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  // Initialize chat with welcome message
+
   useEffect(() => {
     if (welcomeMessage) {
       setMessages([
@@ -129,12 +124,12 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
     setIsConnected(true);
   }, [welcomeMessage]);
 
-  // Focus input on mount
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // NEW: Function to detect if message indicates credits exhausted
+
   const isCreditsExhaustedMessage = (content: string): boolean => {
     const exhaustedKeywords = [
       "ai credits",
@@ -176,13 +171,12 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
     currentSessionId?: string,
   ): Promise<ChatResponse> => {
     try {
-      // NEW: Include client detail in request
       const requestBody = {
         sessionId: currentSessionId,
         message,
         userId,
         createNewSession: !currentSessionId,
-        ...(clientDetail && { clientDetail }), // Include client detail if provided
+        ...(clientDetail && { clientDetail }),  
       };
 
       const response = await fetch(`${serverUrl}/chat`, {
@@ -214,7 +208,6 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
     setInputValue("");
     setIsLoading(true);
 
-    // Add user message to chat
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       role: "user",
@@ -226,39 +219,30 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
     onMessageSent?.(messageText);
 
     try {
-      // Create session if needed
       let currentSessionId = sessionId;
       if (!currentSessionId) {
         currentSessionId = await createSession();
         setSessionId(currentSessionId);
       }
 
-      // Send message and get response
       const response = await sendMessage(messageText, currentSessionId);
 
-      // Update session ID if it changed
       if (response.sessionId !== currentSessionId) {
         setSessionId(response.sessionId);
       }
 
-      // NEW: Check if response indicates credits exhausted
       const isExhausted = isCreditsExhaustedMessage(response.message.content);
-
-      // NEW: Update message count from response context
       if (response.context?.messageCount !== undefined) {
         setMessageCount(response.context.messageCount);
       }
-
-      // Add assistant response to chat with credits exhausted flag
       const assistantMessage: ChatMessage = {
         ...response.message,
         timestamp: new Date(response.message.timestamp),
-        isCreditsExhausted: isExhausted, // NEW: Mark credits exhausted messages
+        isCreditsExhausted: isExhausted,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
 
-      // NEW: Handle credits exhausted state
       if (isExhausted) {
         setCreditsExhausted(true);
         onCreditsExhausted?.();
@@ -271,7 +255,6 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
         ? error.message
         : "An unknown error occurred";
 
-      // Add error message to chat
       const errorChatMessage: ChatMessage = {
         id: `error-${Date.now()}`,
         role: "system",
@@ -313,8 +296,8 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
         : [],
     );
     setSessionId(null);
-    setCreditsExhausted(false); // NEW: Reset credits state
-    setMessageCount(0); // NEW: Reset message count
+    setCreditsExhausted(false);
+    setMessageCount(0);
   };
 
   return (
@@ -362,13 +345,13 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
             key={message.id}
             className={`message ${message.role} ${
               message.role === "system" ? "error" : ""
-            } ${message.isCreditsExhausted ? "credits-exhausted" : ""}`} // NEW: Add credits-exhausted class
+            } ${message.isCreditsExhausted ? "credits-exhausted" : ""}`}
           >
             <div className="message-content">
               <div
                 className={`message-text ${
                   message.isCreditsExhausted ? "credits-exhausted-text" : ""
-                }`} // NEW: Special styling for credits exhausted text
+                }`}
               >
                 {/* NEW: Use FormattedMessageContent for rich text formatting */}
                 <FormattedMessageContent content={message.content} />
@@ -383,7 +366,7 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
                 : message.role === "system"
                 ? "⚠️"
                 : message.isCreditsExhausted
-                ? "🚫" // NEW: Different emoji for credits exhausted
+                ? "🚫" 
                 : "🐸"}
             </div>
           </div>
@@ -427,13 +410,13 @@ export const ChatComponent: React.FC<ChatComponentProps> = ({
             onKeyPress={handleKeyPress}
             placeholder={creditsExhausted
               ? "Credits exhausted..."
-              : placeholder} // NEW: Update placeholder when exhausted
-            disabled={isLoading || creditsExhausted} // NEW: Disable input when exhausted
+              : placeholder} 
+            disabled={isLoading || creditsExhausted} 
             className="chat-input"
           />
           <button
             onClick={handleSendMessage}
-            disabled={!inputValue.trim() || isLoading || creditsExhausted} // NEW: Disable when exhausted
+            disabled={!inputValue.trim() || isLoading || creditsExhausted} 
             className="send-button"
             title={creditsExhausted ? "Credits exhausted" : "Send message"}
           >

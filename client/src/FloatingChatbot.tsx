@@ -43,11 +43,9 @@ const FloatingChatBot: React.FC<FloatingChatBotProps> = ({
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
 
-  // Handle clicks outside to close chat
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (chatRef.current && !chatRef.current.contains(event.target as Node)) {
-        // Don't close if clicking on the floating button
         const target = event.target as HTMLElement;
         if (!target.closest(".floating-chat-button")) {
           setIsOpen(false);
