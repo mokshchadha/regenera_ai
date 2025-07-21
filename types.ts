@@ -47,7 +47,7 @@ export interface MergedResponseData {
 
 export interface ClientDetail {
   personNumber?: string;
-  id?: string;
+  accountId?: string;
   companyId?: string;
   userId?: string;
   [key: string]: any;

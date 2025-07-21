@@ -239,16 +239,18 @@ join account a on a.id = u.id
 where u.id="user_id_from_context";
 
 
-### 3. Users's or Organizations Impact Metrics
-select * from summary_metrics sm  join landscape l  on sm.landscape_id = l.id join users u on l."userId" = u.id
-where u.id="user_id_from_context";
-
-### 4. Organization's Emission Activities
+### 3. Organization's Emission Activities
 SELECT oea."inventoryYear", oea."totalEmission", oea.status
 FROM org_emission_activity oea
 WHERE oea."organizationId" = 'org_id_from_context'
 ORDER BY oea."inventoryYear" DESC
 LIMIT 10;
+
+### 4. How much CO2 have i compensated ?
+SELECT sum(compensated) as totalCompensation  FROM summary_metrics sm
+join account a on a.id = sm.partner_id where a.id ="accountId_from_context"; -- HERE it is very important to use only "accountId"
+
+
 
 ## Important Guidelines
 

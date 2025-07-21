@@ -4,7 +4,7 @@ import "./FloatingChatBot.css";
 
 interface ClientDetail {
   personNumber?: string;
-  id?: string;
+  accountId?: string;
   companyId?: string;
   userId?: string;
   [key: string]: unknown;
@@ -30,7 +30,7 @@ interface FloatingChatBotProps {
 
 const FloatingChatBot: React.FC<FloatingChatBotProps> = ({
   serverUrl = "http://localhost:8000",
-  userId = 252,
+  userId,
   clientDetail,
   onError,
   onMessageSent,

@@ -131,7 +131,7 @@ export class MultiAgentChatbot {
   ): Promise<AgentTextResponse | null> {
     try {
       console.log("🗄️ Processing SQL query with database execution...");
-
+      console.log("cleintesl", {clientDetail})
       const contextualPrompt = this.buildSQLPromptWithContext(
         queryDetails.extracted_intent || userQuery,
         clientDetail,
@@ -256,8 +256,8 @@ export class MultiAgentChatbot {
       contextInfo.push(`User ID: ${clientDetail.userId}`);
     }
 
-    if (clientDetail.id) {
-      contextInfo.push(`Organization ID: ${clientDetail.id}`);
+    if (clientDetail.accountId) {
+      contextInfo.push(`Account ID: ${clientDetail.accountId}`);
     }
 
     if (clientDetail.companyId) {

@@ -10,7 +10,7 @@ interface ChatMessage {
 
 interface ClientDetail {
   personNumber?: string;
-  id?: string;
+  accountId?: string;
   companyId?: string;
   userId?: string;
   [key: string]: unknown;

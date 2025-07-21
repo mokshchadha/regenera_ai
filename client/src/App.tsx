@@ -22,9 +22,9 @@ interface ChatMessage {
 function App() {
   const clientDetail: ClientDetail = {
     personNumber: "P123456",
-    id: 252,
+    userId: 457,
     companyId: "REGENERA_EARTH",
-    userId: 252,
+    accountId: 176,
   };
 
   const handleError = (error: string) => {
@@ -84,7 +84,7 @@ function App() {
       {/* Floating ChatBot */}
       <FloatingChatBot
         serverUrl="http://localhost:8000"
-        userId={252}
+        userId={clientDetail.userId}
         clientDetail={clientDetail}
         onError={handleError}
         onMessageSent={handleMessageSent}
